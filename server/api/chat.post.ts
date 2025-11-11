@@ -5,7 +5,7 @@ import { join, dirname } from 'path'
 
 // Cache global pour le system prompt (si activé)
 let systemPromptCache: string | null = null
-
+//
 // Obtenir le chemin du fichier actuel
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
