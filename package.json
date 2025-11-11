@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@nuxt/ui": "^2.18.4",
+    "@nuxtjs/i18n": "^10.2.0",
     "nuxt": "^3.13.0",
     "vue": "^3.4.27"
   },
@@ -19,4 +20,3 @@
     "@nuxtjs/tailwindcss": "^6.12.0"
   }
 }
-

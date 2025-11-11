@@ -1,0 +1,15 @@
+{
+  "chat": {
+    "title": "Chat",
+    "pageTitle": "Chat - AI Chatbot",
+    "welcomeMessage": "How can I help you today?",
+    "inputPlaceholder": "Write your message...",
+    "send": "Send"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry"
+  }
+}
+

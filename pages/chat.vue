@@ -2,8 +2,9 @@
   <div class="h-screen flex flex-col bg-white">
     <!-- Header -->
     <header class="border-b border-gray-200 bg-white sticky top-0 z-10">
-      <div class="max-w-4xl mx-auto px-4 py-4">
-        <h1 class="text-xl font-semibold text-gray-900">Chat</h1>
+      <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+        <h1 class="text-xl font-semibold text-gray-900">{{ $t('chat.title') }}</h1>
+        <LanguageSwitcher />
       </div>
     </header>
 
@@ -16,7 +17,7 @@
         <!-- Welcome message when no messages -->
         <div v-if="messages.length === 0" class="flex items-center justify-center h-full px-4">
           <div class="text-center text-gray-400">
-            <p class="text-lg">How can I help you today?</p>
+            <p class="text-lg">{{ $t('chat.welcomeMessage') }}</p>
           </div>
         </div>
 
@@ -82,9 +83,12 @@ const scrollToBottom = () => {
   }
 }
 
+// Internationalization
+const { t } = useI18n()
+
 // Set page title
 useHead({
-  title: 'Chat - AI Chatbot'
+  title: t('chat.pageTitle')
 })
 </script>
 

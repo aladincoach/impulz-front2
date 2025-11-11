@@ -1,0 +1,15 @@
+{
+  "chat": {
+    "title": "Chat",
+    "pageTitle": "Chat - Chatbot IA",
+    "welcomeMessage": "Comment puis-je vous aider aujourd'hui ?",
+    "inputPlaceholder": "Écrivez votre message...",
+    "send": "Envoyer"
+  },
+  "common": {
+    "loading": "Chargement...",
+    "error": "Une erreur s'est produite",
+    "retry": "Réessayer"
+  }
+}
+

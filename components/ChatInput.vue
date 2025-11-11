@@ -4,7 +4,7 @@
       <div class="flex gap-3 items-center">
         <UInput
           v-model="inputText"
-          placeholder="Message..."
+          :placeholder="$t('chat.inputPlaceholder')"
           size="xl"
           :ui="{ 
             base: 'flex-1',
