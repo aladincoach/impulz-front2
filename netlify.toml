@@ -7,6 +7,10 @@
   # Ignore Nitro server bundles as they are server-side only and not exposed to clients
   SECRETS_SCAN_OMIT_PATHS = ".netlify/functions-internal/**"
 
-# Nuxt 3 avec Nitro génère automatiquement les fonctions serverless
-# Pas besoin de plugin spécifique pour Nuxt 3
+# Branch deploy configuration
+[context.branch-deploy]
+  command = "npm run build"
+
+# Nuxt 4 with Nitro automatically generates serverless functions
+# No specific plugin needed for Nuxt 4
 
