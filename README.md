@@ -94,6 +94,7 @@ The `netlify.toml` file is pre-configured with:
 - Build command: `npm run build`
 - Publish directory: `.output/public`
 - Secrets scanning: Configured to ignore server bundles (`.netlify/functions-internal/**`)
+- **No plugin required**: Nuxt 3 with Nitro automatically generates Netlify-compatible serverless functions
 
 **Important**: The API key is only used server-side in Nitro functions and is never exposed to clients. The `netlify.toml` configuration tells Netlify's security scanner to skip the server bundle files since they run only on the server.
 

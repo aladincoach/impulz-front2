@@ -1,19 +1,28 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { readFileSync } from 'fs'
+import { fileURLToPath } from 'url'
+import { join, dirname } from 'path'
 
 // Cache global pour le system prompt (si activé)
 let systemPromptCache: string | null = null
 
+// Obtenir le chemin du fichier actuel
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
 // Fonction pour charger le system prompt
 function getSystemPrompt(useCache: boolean): string {
+  const promptPath = join(__dirname, '..', '..', 'prompts', 'system-prompt.md')
+  
   // Si le cache est désactivé, recharger le fichier à chaque fois
   if (!useCache) {
     try {
-      const prompt = readFileSync(new URL('../../prompts/system-prompt.md', import.meta.url), 'utf8')
+      const prompt = readFileSync(promptPath, 'utf8')
       console.log('🔄 [RELOAD] System prompt rechargé (cache désactivé)')
       return prompt
     } catch (error) {
       console.error('❌ [ERROR] Erreur lors du chargement du system prompt:', error)
+      console.error('❌ [ERROR] Chemin tenté:', promptPath)
       throw error
     }
   }
@@ -21,10 +30,11 @@ function getSystemPrompt(useCache: boolean): string {
   // Si le cache est activé, charger une seule fois
   if (systemPromptCache === null) {
     try {
-      systemPromptCache = readFileSync(new URL('../../prompts/system-prompt.md', import.meta.url), 'utf8')
+      systemPromptCache = readFileSync(promptPath, 'utf8')
       console.log('✅ [CACHE] System prompt chargé et mis en cache')
     } catch (error) {
       console.error('❌ [ERROR] Erreur lors du chargement du system prompt:', error)
+      console.error('❌ [ERROR] Chemin tenté:', promptPath)
       throw error
     }
   }
