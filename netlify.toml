@@ -7,6 +7,11 @@
   # Ignore Nitro server bundles as they are server-side only and not exposed to clients
   SECRETS_SCAN_OMIT_PATHS = ".netlify/functions-internal/**,.output/server/**"
 
+[functions]
+  directory = ".output/server"
+  node_bundler = "none"
+  included_files = ["**"]
+
 # Branch deploy configuration
 [context.branch-deploy]
   command = "npm run build"
