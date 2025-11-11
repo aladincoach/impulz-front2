@@ -1,7 +1,16 @@
 <template>
   <div :class="containerClass">
     <div :class="bubbleClass">
-      {{ message.text }}
+      <template v-if="message.isLoading">
+        <div class="flex items-center gap-1">
+          <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+          <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+          <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+        </div>
+      </template>
+      <template v-else>
+        <span class="whitespace-pre-wrap">{{ message.text }}</span>
+      </template>
     </div>
   </div>
 </template>
@@ -11,6 +20,7 @@ interface Message {
   id: string
   text: string
   isUser: boolean
+  isLoading?: boolean
 }
 
 const props = defineProps<{

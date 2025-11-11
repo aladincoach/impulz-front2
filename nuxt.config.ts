@@ -6,6 +6,9 @@ export default defineNuxtConfig({
   colorMode: {
     preference: 'light'
   },
+  runtimeConfig: {
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY || ''
+  },
   i18n: {
     locales: [
       {

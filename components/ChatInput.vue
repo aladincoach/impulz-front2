@@ -11,10 +11,11 @@
             rounded: 'rounded-full',
           }"
           autocomplete="off"
+          :disabled="disabled"
         />
         <UButton
           type="submit"
-          :disabled="!inputText.trim()"
+          :disabled="!inputText.trim() || disabled"
           icon="i-heroicons-paper-airplane"
           size="xl"
           :ui="{
@@ -28,6 +29,10 @@
 
 <script setup lang="ts">
 const inputText = ref('')
+
+defineProps<{
+  disabled?: boolean
+}>()
 
 const emit = defineEmits<{
   send: [text: string]
