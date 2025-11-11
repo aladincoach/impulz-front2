@@ -1,0 +1,17 @@
+[build]
+  command = "npm run build"
+  publish = ".output/public"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[build.environment]
+  # Secrets scanning configuration
+  # Ignore Nitro server bundles as they are server-side only and not exposed to clients
+  SECRETS_SCAN_OMIT_PATHS = ".netlify/functions-internal/**"
+
+[functions]
+  # Nitro generates server functions
+  directory = ".netlify/functions-internal"
+  node_bundler = "esbuild"
+

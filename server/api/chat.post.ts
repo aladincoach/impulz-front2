@@ -1,4 +1,35 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { readFileSync } from 'fs'
+
+// Cache global pour le system prompt (si activé)
+let systemPromptCache: string | null = null
+
+// Fonction pour charger le system prompt
+function getSystemPrompt(useCache: boolean): string {
+  // Si le cache est désactivé, recharger le fichier à chaque fois
+  if (!useCache) {
+    try {
+      const prompt = readFileSync(new URL('../../prompts/system-prompt.md', import.meta.url), 'utf8')
+      console.log('🔄 [RELOAD] System prompt rechargé (cache désactivé)')
+      return prompt
+    } catch (error) {
+      console.error('❌ [ERROR] Erreur lors du chargement du system prompt:', error)
+      throw error
+    }
+  }
+
+  // Si le cache est activé, charger une seule fois
+  if (systemPromptCache === null) {
+    try {
+      systemPromptCache = readFileSync(new URL('../../prompts/system-prompt.md', import.meta.url), 'utf8')
+      console.log('✅ [CACHE] System prompt chargé et mis en cache')
+    } catch (error) {
+      console.error('❌ [ERROR] Erreur lors du chargement du system prompt:', error)
+      throw error
+    }
+  }
+  return systemPromptCache
+}
 
 export default defineEventHandler(async (event) => {
   const { message, conversationHistory } = await readBody(event)
@@ -13,7 +44,9 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY || process.env.NUXT_ANTHROPIC_API_KEY
+  const config = useRuntimeConfig(event)
+  const apiKey = config.anthropicApiKey
+  const useCache = config.systemPromptCache
 
   if (!apiKey) {
     console.error('❌ [API] ANTHROPIC_API_KEY not configured')
@@ -24,6 +57,7 @@ export default defineEventHandler(async (event) => {
   }
 
   console.log('✅ [API] API Key présente (length:', apiKey.length, ')')
+  console.log('⚙️  [CONFIG] Cache system prompt:', useCache ? 'activé' : 'désactivé')
 
   const client = new Anthropic({
     apiKey: apiKey
@@ -52,10 +86,10 @@ export default defineEventHandler(async (event) => {
     console.log('📤 [API] Envoi à Claude avec', messages.length, 'messages')
 
     // Créer le stream avec Claude - Utilisation du modèle correct
-    // Modèles disponibles: claude-3-5-sonnet-20240620, claude-3-opus-20240229, claude-3-sonnet-20240229
     const stream = await client.messages.stream({
       model: 'claude-3-5-haiku-20241022',
       max_tokens: 4096,
+      system: getSystemPrompt(useCache),
       messages: messages
     })
 
