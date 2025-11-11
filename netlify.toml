@@ -5,7 +5,7 @@
 [build.environment]
   # Secrets scanning configuration
   # Ignore Nitro server bundles as they are server-side only and not exposed to clients
-  SECRETS_SCAN_OMIT_PATHS = ".netlify/functions-internal/**"
+  SECRETS_SCAN_OMIT_PATHS = ".netlify/functions-internal/**,.output/server/**"
 
 # Branch deploy configuration
 [context.branch-deploy]
