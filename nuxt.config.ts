@@ -3,6 +3,11 @@ export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
   devtools: { enabled: true },
   modules: ['@nuxt/ui', '@nuxtjs/i18n'],
+  
+  // Client-side rendering for all pages (SPA-like behavior)
+  // while keeping server API routes working
+  ssr: false,
+  
   colorMode: {
     preference: 'light'
   },
