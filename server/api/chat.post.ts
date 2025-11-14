@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import type { Handler } from '@netlify/functions'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { join, dirname } from 'path'
@@ -55,16 +56,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const config = useRuntimeConfig(event)
-  const apiKey = config.anthropicApiKey
   const useCache = config.systemPromptCache
-
-  if (!apiKey) {
-    console.error('❌ [API] ANTHROPIC_API_KEY not configured')
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'ANTHROPIC_API_KEY not configured'
-    })
-  }
+  const apiKey = process.env.ANTHROPIC_API_KEY // ✅ lu à l’exécution, pas au build
+  if (!apiKey) return { statusCode: 500, body: 'Missing ANTHROPIC_API_KEY' }
 
   console.log('✅ [API] API Key présente (length:', apiKey.length, ')')
   console.log('⚙️  [CONFIG] Cache system prompt:', useCache ? 'activé' : 'désactivé')

@@ -2,16 +2,11 @@
   command = "npm run build"
   publish = ".output/public"
 
-[build.environment]
-  # Secrets scanning configuration
-  # Ignore Nitro server bundles as they are server-side only and not exposed to clients
-  SECRETS_SCAN_OMIT_PATHS = ".netlify/functions-internal/**,.output/server/**"
-
 [functions]
-  directory = ".output/server"
-  node_bundler = "none"
-  included_files = ["**"]
+  directory = "netlify/functions"
 
-# Branch deploy configuration
-[context.branch-deploy]
-  command = "npm run build"
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+

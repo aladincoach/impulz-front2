@@ -11,7 +11,6 @@ export default defineNuxtConfig({
     preference: 'light'
   },
   runtimeConfig: {
-    anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
     systemPromptCache: process.env.SYSTEM_PROMPT_CACHE
   },
   nitro: {
