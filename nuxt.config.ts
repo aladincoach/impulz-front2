@@ -5,7 +5,6 @@ export default defineNuxtConfig({
   modules: ['@nuxt/ui', '@nuxtjs/i18n'],
   
   // Client-side rendering for all pages (SPA-like behavior)
-  // while keeping server API routes working
   ssr: false,
   
   colorMode: {
@@ -13,7 +12,7 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
-    systemPromptCache: process.env.SYSTEM_PROMPT_CACHE !== 'false'
+    systemPromptCache: process.env.SYSTEM_PROMPT_CACHE
   },
   nitro: {
     preset: 'netlify',
