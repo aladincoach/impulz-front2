@@ -15,10 +15,12 @@ export default defineNuxtConfig({
   },
   nitro: {
     preset: 'netlify',
-    output: {
-      dir: '.output',
-      publicDir: '.output/public'
-    }
+    serverAssets: [
+      {
+        baseName: 'prompts',
+        dir: './prompts'
+      }
+    ]
   },
   i18n: {
     locales: [

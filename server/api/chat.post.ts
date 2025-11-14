@@ -1,29 +1,30 @@
 import Anthropic from '@anthropic-ai/sdk'
-import type { Handler } from '@netlify/functions'
 import { readFileSync } from 'fs'
-import { fileURLToPath } from 'url'
-import { join, dirname } from 'path'
+import { join } from 'path'
 
 // Cache global pour le system prompt (si activé)
 let systemPromptCache: string | null = null
-//
-// Obtenir le chemin du fichier actuel
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
 
 // Fonction pour charger le system prompt
 function getSystemPrompt(useCache: boolean): string {
-  const promptPath = join(__dirname, '..', '..', 'prompts', 'system-prompt.md')
-  
   // Si le cache est désactivé, recharger le fichier à chaque fois
   if (!useCache) {
     try {
+      // Utiliser process.cwd() pour obtenir le répertoire racine du projet
+      const promptPath = join(process.cwd(), 'prompts', 'system-prompt.md')
       const prompt = readFileSync(promptPath, 'utf8')
+      
+      if (!prompt || typeof prompt !== 'string') {
+        throw new Error('System prompt is empty or invalid')
+      }
+      
       console.log('🔄 [RELOAD] System prompt rechargé (cache désactivé)')
+      console.log('📝 [DEBUG] Prompt length:', prompt.length)
+      console.log('📝 [DEBUG] Path used:', promptPath)
       return prompt
     } catch (error) {
       console.error('❌ [ERROR] Erreur lors du chargement du system prompt:', error)
-      console.error('❌ [ERROR] Chemin tenté:', promptPath)
+      console.error('❌ [ERROR] CWD:', process.cwd())
       throw error
     }
   }
@@ -31,11 +32,21 @@ function getSystemPrompt(useCache: boolean): string {
   // Si le cache est activé, charger une seule fois
   if (systemPromptCache === null) {
     try {
-      systemPromptCache = readFileSync(promptPath, 'utf8')
+      // Utiliser process.cwd() pour obtenir le répertoire racine du projet
+      const promptPath = join(process.cwd(), 'prompts', 'system-prompt.md')
+      const prompt = readFileSync(promptPath, 'utf8')
+      
+      if (!prompt || typeof prompt !== 'string') {
+        throw new Error('System prompt is empty or invalid')
+      }
+      
+      systemPromptCache = prompt
       console.log('✅ [CACHE] System prompt chargé et mis en cache')
+      console.log('📝 [DEBUG] Prompt length:', systemPromptCache.length)
+      console.log('📝 [DEBUG] Path used:', promptPath)
     } catch (error) {
       console.error('❌ [ERROR] Erreur lors du chargement du system prompt:', error)
-      console.error('❌ [ERROR] Chemin tenté:', promptPath)
+      console.error('❌ [ERROR] CWD:', process.cwd())
       throw error
     }
   }
@@ -89,11 +100,16 @@ export default defineEventHandler(async (event) => {
 
     console.log('📤 [API] Envoi à Claude avec', messages.length, 'messages')
 
+    // Charger le system prompt
+    const systemPrompt = getSystemPrompt(useCache)
+    console.log('📝 [DEBUG] System prompt type:', typeof systemPrompt)
+    console.log('📝 [DEBUG] System prompt preview:', systemPrompt.substring(0, 100))
+
     // Créer le stream avec Claude - Utilisation du modèle correct
     const stream = await client.messages.stream({
       model: 'claude-3-5-haiku-20241022',
       max_tokens: 4096,
-      system: getSystemPrompt(useCache),
+      system: systemPrompt,
       messages: messages
     })
 
