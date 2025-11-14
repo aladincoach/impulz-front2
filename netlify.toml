@@ -1,32 +1,17 @@
 [build]
-  command = "npm run generate"
+  command = "npm run build"
   publish = ".output/public"
-
-# Branch deploy configuration
-[context.branch-deploy]
-  command = "npm run generate"
 
 [build.environment]
   # Secrets scanning configuration
   # Ignore Nitro server bundles as they are server-side only and not exposed to clients
   SECRETS_SCAN_OMIT_PATHS = ".netlify/functions-internal/**,.output/server/**"
 
-
 [functions]
-  directory = "netlify/functions"   
+  directory = ".output/server"
+  node_bundler = "none"
+  included_files = ["**"]
 
-
-# Fallback SPA pour toutes les routes (doit être le DERNIER)
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
-#  Headers de base - sécurité & cache
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "same-origin"
-    Cache-Control = "public, max-age=0, must-revalidate"
+# Branch deploy configuration
+[context.branch-deploy]
+  command = "npm run build"
