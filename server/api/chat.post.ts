@@ -52,7 +52,7 @@ async function loadPromptFile(): Promise<string> {
   const possiblePaths = [
     join(process.cwd(), 'prompts', 'system-prompt.md'),
     join(process.cwd(), '..', '..', 'prompts', 'system-prompt.md'),
-    join(__dirname, '..', '..', 'prompts', 'system-prompt.md'),
+    '/var/task/prompts/system-prompt.md', // Chemin Netlify production
   ]
 
   for (const path of possiblePaths) {
