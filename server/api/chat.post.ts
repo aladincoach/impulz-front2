@@ -36,24 +36,47 @@ async function getSystemPrompt(useCache: boolean): Promise<string> {
 
 // Fonction pour charger le fichier prompt depuis différents emplacements
 async function loadPromptFile(): Promise<string> {
-  console.log('🔍 [LOAD] Tentative de chargement du system prompt...')
+  console.log('🔍 [LOAD] ========== DEBUT CHARGEMENT SYSTEM PROMPT ==========')
   console.log('🔍 [LOAD] CWD:', process.cwd())
+  console.log('🔍 [LOAD] __filename:', import.meta.url)
+  console.log('🔍 [LOAD] NODE_ENV:', process.env.NODE_ENV)
+  console.log('🔍 [LOAD] NETLIFY:', process.env.NETLIFY)
+  
+  // Lister les fichiers dans le répertoire courant pour debug
+  try {
+    const { readdirSync } = await import('fs')
+    console.log('🔍 [LOAD] Files in CWD:', readdirSync(process.cwd()))
+    
+    // Essayer de lister /var/task si on est sur Netlify
+    if (existsSync('/var/task')) {
+      console.log('🔍 [LOAD] Files in /var/task:', readdirSync('/var/task'))
+    }
+  } catch (error: any) {
+    console.log('⚠️  [LOAD] Could not list directories:', error.message)
+  }
   
   // 1. Essayer avec useStorage (pour le dev local et si serverAssets fonctionne)
+  console.log('🔍 [LOAD] --- Tentative 1: useStorage ---')
   try {
     const storage = useStorage('assets:prompts')
+    console.log('🔍 [LOAD] Storage created, attempting getItem...')
     const prompt = await storage.getItem('system-prompt.md')
-    if (prompt && typeof prompt === 'string') {
+    console.log('🔍 [LOAD] getItem returned type:', typeof prompt)
+    console.log('🔍 [LOAD] getItem returned value length:', prompt ? String(prompt).length : 0)
+    
+    if (prompt && typeof prompt === 'string' && prompt.length > 50) {
       console.log('✅ [LOAD] Prompt chargé via useStorage (length:', prompt.length, ')')
       return prompt
     } else {
-      console.log('⚠️  [LOAD] useStorage returned:', typeof prompt, prompt ? 'with content' : 'empty')
+      console.log('⚠️  [LOAD] useStorage returned invalid data')
     }
   } catch (error: any) {
     console.log('⚠️  [LOAD] useStorage failed:', error.message)
+    console.log('⚠️  [LOAD] useStorage error stack:', error.stack)
   }
 
   // 2. Fallback: essayer de lire directement depuis le système de fichiers
+  console.log('🔍 [LOAD] --- Tentative 2: File System ---')
   const possiblePaths = [
     join(process.cwd(), 'prompts', 'system-prompt.md'),
     join(process.cwd(), 'dist', 'prompts', 'system-prompt.md'),
@@ -62,22 +85,31 @@ async function loadPromptFile(): Promise<string> {
     '/var/task/dist/prompts/system-prompt.md',
   ]
   
-  for (const path of possiblePaths) {
-    console.log('🔍 [LOAD] Trying path:', path)
+  console.log('🔍 [LOAD] Will try', possiblePaths.length, 'paths')
+  
+  for (let i = 0; i < possiblePaths.length; i++) {
+    const path = possiblePaths[i]
+    console.log(`🔍 [LOAD] [${i + 1}/${possiblePaths.length}] Trying:`, path)
     try {
-      if (existsSync(path)) {
+      const exists = existsSync(path)
+      console.log(`🔍 [LOAD] [${i + 1}/${possiblePaths.length}] existsSync returned:`, exists)
+      
+      if (exists) {
+        console.log(`🔍 [LOAD] [${i + 1}/${possiblePaths.length}] File exists! Reading...`)
         const prompt = readFileSync(path, 'utf8')
-        console.log('✅ [LOAD] Prompt chargé depuis:', path, '(length:', prompt.length, ')')
+        console.log(`✅ [LOAD] SUCCESS! Prompt loaded from: ${path}`)
+        console.log(`✅ [LOAD] Prompt length: ${prompt.length} characters`)
+        console.log(`✅ [LOAD] Prompt preview: ${prompt.substring(0, 50)}...`)
         return prompt
       } else {
-        console.log('⚠️  [LOAD] Path does not exist:', path)
+        console.log(`⚠️  [LOAD] [${i + 1}/${possiblePaths.length}] Path does not exist`)
       }
     } catch (error: any) {
-      console.log('⚠️  [LOAD] Path failed:', path, '-', error.message)
+      console.log(`❌ [LOAD] [${i + 1}/${possiblePaths.length}] Error:`, error.message)
     }
   }
 
-  console.error('❌ [LOAD] All loading methods failed')
+  console.error('❌ [LOAD] ========== ALL LOADING METHODS FAILED ==========')
   throw new Error('Unable to load system prompt from any location')
 }
 
