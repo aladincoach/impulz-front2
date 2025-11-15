@@ -1,10 +1,11 @@
 [build]
-  command = "npm run build && cp -r prompts dist/prompts"
+  command = "npm run build && mkdir -p .netlify/functions-internal/prompts && cp prompts/system-prompt.md .netlify/functions-internal/prompts/"
   publish = "dist"
 
 [functions]
-  directory = "netlify/functions"
+  directory = ".netlify/functions-internal"
   included_files = ["prompts/**"]
+  node_bundler = "esbuild"
 
 [[redirects]]
   from = "/*"

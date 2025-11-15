@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { readFileSync, existsSync } from 'fs'
-import { join } from 'path'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
 
 // Cache global pour le system prompt (si activé)
 let systemPromptCache: string | null = null
@@ -77,12 +78,21 @@ async function loadPromptFile(): Promise<string> {
 
   // 2. Fallback: essayer de lire directement depuis le système de fichiers
   console.log('🔍 [LOAD] --- Tentative 2: File System ---')
+  
+  // Obtenir le chemin du fichier actuel (équivalent de __dirname en ESM)
+  const currentFilePath = fileURLToPath(import.meta.url)
+  const currentDir = dirname(currentFilePath)
+  
   const possiblePaths = [
     join(process.cwd(), 'prompts', 'system-prompt.md'),
     join(process.cwd(), 'dist', 'prompts', 'system-prompt.md'),
     join(process.cwd(), '..', '..', 'prompts', 'system-prompt.md'),
     '/var/task/prompts/system-prompt.md',
     '/var/task/dist/prompts/system-prompt.md',
+    // Chemins spécifiques pour Netlify Functions (relatifs au fichier API)
+    join(currentDir, '..', '..', 'prompts', 'system-prompt.md'),
+    join(currentDir, '..', 'prompts', 'system-prompt.md'),
+    join(currentDir, 'prompts', 'system-prompt.md'),
   ]
   
   console.log('🔍 [LOAD] Will try', possiblePaths.length, 'paths')
