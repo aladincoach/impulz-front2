@@ -1,30 +1,21 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { readFileSync } from 'fs'
+import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 
 // Cache global pour le system prompt (si activé)
 let systemPromptCache: string | null = null
 
 // Fonction pour charger le system prompt
-function getSystemPrompt(useCache: boolean): string {
+async function getSystemPrompt(useCache: boolean): Promise<string> {
   // Si le cache est désactivé, recharger le fichier à chaque fois
   if (!useCache) {
     try {
-      // Utiliser process.cwd() pour obtenir le répertoire racine du projet
-      const promptPath = join(process.cwd(), 'prompts', 'system-prompt.md')
-      const prompt = readFileSync(promptPath, 'utf8')
-      
-      if (!prompt || typeof prompt !== 'string') {
-        throw new Error('System prompt is empty or invalid')
-      }
-      
+      const prompt = await loadPromptFile()
       console.log('🔄 [RELOAD] System prompt rechargé (cache désactivé)')
       console.log('📝 [DEBUG] Prompt length:', prompt.length)
-      console.log('📝 [DEBUG] Path used:', promptPath)
       return prompt
     } catch (error) {
       console.error('❌ [ERROR] Erreur lors du chargement du system prompt:', error)
-      console.error('❌ [ERROR] CWD:', process.cwd())
       throw error
     }
   }
@@ -32,25 +23,51 @@ function getSystemPrompt(useCache: boolean): string {
   // Si le cache est activé, charger une seule fois
   if (systemPromptCache === null) {
     try {
-      // Utiliser process.cwd() pour obtenir le répertoire racine du projet
-      const promptPath = join(process.cwd(), 'prompts', 'system-prompt.md')
-      const prompt = readFileSync(promptPath, 'utf8')
-      
-      if (!prompt || typeof prompt !== 'string') {
-        throw new Error('System prompt is empty or invalid')
-      }
-      
-      systemPromptCache = prompt
+      systemPromptCache = await loadPromptFile()
       console.log('✅ [CACHE] System prompt chargé et mis en cache')
       console.log('📝 [DEBUG] Prompt length:', systemPromptCache.length)
-      console.log('📝 [DEBUG] Path used:', promptPath)
     } catch (error) {
       console.error('❌ [ERROR] Erreur lors du chargement du system prompt:', error)
-      console.error('❌ [ERROR] CWD:', process.cwd())
       throw error
     }
   }
   return systemPromptCache
+}
+
+// Fonction pour charger le fichier prompt depuis différents emplacements
+async function loadPromptFile(): Promise<string> {
+  // Essayer d'abord avec useStorage (pour le dev local et si serverAssets fonctionne)
+  try {
+    const storage = useStorage('assets:prompts')
+    const prompt = await storage.getItem('system-prompt.md')
+    if (prompt && typeof prompt === 'string') {
+      console.log('✅ [LOAD] Prompt chargé via useStorage')
+      return prompt
+    }
+  } catch (error) {
+    console.log('⚠️  [LOAD] useStorage failed, trying file system...')
+  }
+
+  // Fallback: essayer de lire directement depuis le système de fichiers
+  const possiblePaths = [
+    join(process.cwd(), 'prompts', 'system-prompt.md'),
+    join(process.cwd(), '..', '..', 'prompts', 'system-prompt.md'),
+    join(__dirname, '..', '..', 'prompts', 'system-prompt.md'),
+  ]
+
+  for (const path of possiblePaths) {
+    try {
+      if (existsSync(path)) {
+        const prompt = readFileSync(path, 'utf8')
+        console.log('✅ [LOAD] Prompt chargé depuis:', path)
+        return prompt
+      }
+    } catch (error) {
+      console.log('⚠️  [LOAD] Path failed:', path)
+    }
+  }
+
+  throw new Error('Unable to load system prompt from any location')
 }
 
 export default defineEventHandler(async (event) => {
@@ -101,7 +118,7 @@ export default defineEventHandler(async (event) => {
     console.log('📤 [API] Envoi à Claude avec', messages.length, 'messages')
 
     // Charger le system prompt
-    const systemPrompt = getSystemPrompt(useCache)
+    const systemPrompt = await getSystemPrompt(useCache)
     console.log('📝 [DEBUG] System prompt type:', typeof systemPrompt)
     console.log('📝 [DEBUG] System prompt preview:', systemPrompt.substring(0, 100))
 
