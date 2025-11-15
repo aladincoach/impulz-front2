@@ -20,13 +20,6 @@ export default defineNuxtConfig({
         baseName: 'prompts',
         dir: './prompts'
       }
-    ],
-    publicAssets: [
-      {
-        baseURL: 'prompts',
-        dir: './prompts',
-        maxAge: 0
-      }
     ]
   },
   i18n: {

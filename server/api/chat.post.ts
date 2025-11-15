@@ -36,37 +36,48 @@ async function getSystemPrompt(useCache: boolean): Promise<string> {
 
 // Fonction pour charger le fichier prompt depuis différents emplacements
 async function loadPromptFile(): Promise<string> {
-  // Essayer d'abord avec useStorage (pour le dev local et si serverAssets fonctionne)
+  console.log('🔍 [LOAD] Tentative de chargement du system prompt...')
+  console.log('🔍 [LOAD] CWD:', process.cwd())
+  
+  // 1. Essayer avec useStorage (pour le dev local et si serverAssets fonctionne)
   try {
     const storage = useStorage('assets:prompts')
     const prompt = await storage.getItem('system-prompt.md')
     if (prompt && typeof prompt === 'string') {
-      console.log('✅ [LOAD] Prompt chargé via useStorage')
+      console.log('✅ [LOAD] Prompt chargé via useStorage (length:', prompt.length, ')')
       return prompt
+    } else {
+      console.log('⚠️  [LOAD] useStorage returned:', typeof prompt, prompt ? 'with content' : 'empty')
     }
-  } catch (error) {
-    console.log('⚠️  [LOAD] useStorage failed, trying file system...')
+  } catch (error: any) {
+    console.log('⚠️  [LOAD] useStorage failed:', error.message)
   }
 
-  // Fallback: essayer de lire directement depuis le système de fichiers
+  // 2. Fallback: essayer de lire directement depuis le système de fichiers
   const possiblePaths = [
     join(process.cwd(), 'prompts', 'system-prompt.md'),
+    join(process.cwd(), 'dist', 'prompts', 'system-prompt.md'),
     join(process.cwd(), '..', '..', 'prompts', 'system-prompt.md'),
-    '/var/task/prompts/system-prompt.md', // Chemin Netlify production
+    '/var/task/prompts/system-prompt.md',
+    '/var/task/dist/prompts/system-prompt.md',
   ]
-
+  
   for (const path of possiblePaths) {
+    console.log('🔍 [LOAD] Trying path:', path)
     try {
       if (existsSync(path)) {
         const prompt = readFileSync(path, 'utf8')
-        console.log('✅ [LOAD] Prompt chargé depuis:', path)
+        console.log('✅ [LOAD] Prompt chargé depuis:', path, '(length:', prompt.length, ')')
         return prompt
+      } else {
+        console.log('⚠️  [LOAD] Path does not exist:', path)
       }
-    } catch (error) {
-      console.log('⚠️  [LOAD] Path failed:', path)
+    } catch (error: any) {
+      console.log('⚠️  [LOAD] Path failed:', path, '-', error.message)
     }
   }
 
+  console.error('❌ [LOAD] All loading methods failed')
   throw new Error('Unable to load system prompt from any location')
 }
 
