@@ -1,5 +1,5 @@
 <template>
-  <div class="border-t border-gray-200 bg-white p-4">
+  <div class="border-none bg-white p-4 backdrop-shadow">
     <form @submit.prevent="handleSubmit" class="max-w-4xl mx-auto">
       <div class="flex gap-3 items-center">
         <UInput

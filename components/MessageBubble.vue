@@ -34,7 +34,7 @@ const containerClass = computed(() => {
 })
 
 const bubbleClass = computed(() => {
-  const baseClass = 'max-w-[80%] md:max-w-[70%] lg:max-w-[60%] px-4 py-3 break-words'
+  const baseClass = 'max-w-[80%] md:max-w-[70%] lg:max-w-[60%] px-4 py-3 break-words border-none backdrop-shadow-sm'
   
   if (props.message.isUser) {
     return `${baseClass} bg-[#FFA07A] text-gray-900 rounded-xl rounded-tr-none`

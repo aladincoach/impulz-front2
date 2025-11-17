@@ -1,7 +1,7 @@
 <template>
   <div class="h-screen flex flex-col bg-white">
     <!-- Header -->
-    <header class="border-b border-gray-200 bg-white sticky top-0 z-10">
+    <header class="border-none bg-white sticky top-0 z-10 backdrop-shadow">
       <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
         <h1 class="text-xl font-semibold text-gray-900">{{ $t('chat.title') }}</h1>
         <LanguageSwitcher />
