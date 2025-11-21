@@ -3,11 +3,24 @@ export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
   devtools: { enabled: true },
   modules: ['@nuxt/ui', '@nuxtjs/i18n'],
+  
+  // Client-side rendering for all pages (SPA-like behavior)
+  ssr: false,
+  
   colorMode: {
     preference: 'light'
   },
   runtimeConfig: {
-    anthropicApiKey: process.env.ANTHROPIC_API_KEY || ''
+    systemPromptCache: process.env.SYSTEM_PROMPT_CACHE
+  },
+  nitro: {
+    preset: 'netlify',
+    serverAssets: [
+      {
+        baseName: 'prompts',
+        dir: './prompts'
+      }
+    ]
   },
   i18n: {
     locales: [

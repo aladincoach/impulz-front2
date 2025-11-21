@@ -1,0 +1,13 @@
+[build]
+  command = "npm run build && cp -r prompts dist/prompts"
+  publish = "dist"
+
+[functions]
+  directory = "netlify/functions"
+  included_files = ["prompts/**"]
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+

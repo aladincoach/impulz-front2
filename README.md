@@ -44,6 +44,11 @@ Create a `.env` file at the root of the project:
 
 ```bash
 ANTHROPIC_API_KEY=your_api_key_here
+
+# System Prompt Cache (optional)
+# true = Cache le system prompt (par défaut, meilleure performance en production)
+# false = Recharge le system prompt à chaque message (utile en développement)
+SYSTEM_PROMPT_CACHE=true
 ```
 
 To get your API key, visit [Anthropic Console](https://console.anthropic.com/)
@@ -71,6 +76,27 @@ Preview production build:
 ```bash
 npm run preview
 ```
+
+## Deployment on Netlify
+
+This app is configured for deployment on Netlify with the following setup:
+
+### 1. Environment Variables
+
+In your Netlify dashboard, go to **Site settings → Environment variables** and add:
+
+- `ANTHROPIC_API_KEY`: Your Claude API key (mark it as **Secret**)
+- `SYSTEM_PROMPT_CACHE`: Set to `true` for production (recommended for better performance)
+
+### 2. Build Configuration
+
+The `netlify.toml` file is pre-configured with:
+- Build command: `npm run build`
+- Publish directory: `.output/public`
+- Secrets scanning: Configured to ignore server bundles (`.netlify/functions-internal/**`)
+- **No plugin required**: Nuxt 3 with Nitro automatically generates Netlify-compatible serverless functions
+
+**Important**: The API key is only used server-side in Nitro functions and is never exposed to clients. The `netlify.toml` configuration tells Netlify's security scanner to skip the server bundle files since they run only on the server.
 
 ## How it Works
 
