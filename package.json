@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
+    "@notionhq/client": "^5.4.0",
     "@nuxt/ui": "^2.18.4",
     "@nuxtjs/i18n": "^10.2.0",
     "nuxt": "^3.13.0",
