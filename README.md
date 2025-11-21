@@ -38,20 +38,23 @@ A simple, minimalist AI chatbot interface built with Nuxt 3, Tailwind CSS, and N
 npm install
 ```
 
-### 2. Configure your Claude API key:
+### 2. Configure environment variables:
 
-Create a `.env` file at the root of the project:
+Create a `.env` file at the root of the project (see `env.example` for template):
 
 ```bash
+# Anthropic API Key
 ANTHROPIC_API_KEY=your_api_key_here
 
-# System Prompt Cache (optional)
-# true = Cache le system prompt (par défaut, meilleure performance en production)
-# false = Recharge le system prompt à chaque message (utile en développement)
-SYSTEM_PROMPT_CACHE=true
+# Notion Configuration (for dynamic system prompt)
+NOTION_API_KEY=your_notion_integration_token
+NOTION_PROMPT_PAGE_ID=your_notion_page_id
 ```
 
-To get your API key, visit [Anthropic Console](https://console.anthropic.com/)
+**Important**: The system prompt is now fetched from Notion for easy updates without redeployment.
+
+- To get your Anthropic API key, visit [Anthropic Console](https://console.anthropic.com/)
+- For detailed Notion setup instructions, see [NOTION_SETUP.md](./NOTION_SETUP.md)
 
 ## Development
 
@@ -86,7 +89,10 @@ This app is configured for deployment on Netlify with the following setup:
 In your Netlify dashboard, go to **Site settings → Environment variables** and add:
 
 - `ANTHROPIC_API_KEY`: Your Claude API key (mark it as **Secret**)
-- `SYSTEM_PROMPT_CACHE`: Set to `true` for production (recommended for better performance)
+- `NOTION_API_KEY`: Your Notion integration token (mark it as **Secret**)
+- `NOTION_PROMPT_PAGE_ID`: Your Notion page ID containing the system prompt
+
+For detailed setup instructions, see [NOTION_SETUP.md](./NOTION_SETUP.md)
 
 ### 2. Build Configuration
 
