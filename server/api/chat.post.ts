@@ -53,7 +53,7 @@ export default defineEventHandler(async (event) => {
     console.log('📝 [DEBUG] System prompt type:', typeof systemPrompt)
     console.log('📝 [DEBUG] System prompt preview:', systemPrompt.substring(0, 100))
 
-    // Créer le stream avec Claude - Utilisation du modèle correct
+    // Créer le stream avec Claude - Utilisation du modèle correct  
     const stream = await client.messages.stream({
       model: 'claude-3-5-haiku-20241022',
       max_tokens: 4096,
