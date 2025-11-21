@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "impulz-front2",
+			"path": "../.."
+		},
+		{
+			"name": "impulz-frontapp",
+			"path": "../../../impulz-frontapp"
+		}
+	],
+	"settings": {}
+}
