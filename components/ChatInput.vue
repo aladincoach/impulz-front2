@@ -1,5 +1,5 @@
 <template>
-  <div class="border-t border-gray-200 bg-white p-4">
+  <div class="border-t border-orange-200 bg-transparent p-4">
     <form @submit.prevent="handleSubmit" class="max-w-4xl mx-auto">
       <div class="flex gap-3 items-center">
         <UInput
@@ -10,6 +10,7 @@
             base: 'flex-1',
             rounded: 'rounded-full',
           }"
+          class="shadow-md"
           autocomplete="off"
           :disabled="disabled"
         />
@@ -18,9 +19,11 @@
           :disabled="!inputText.trim() || disabled"
           icon="i-heroicons-paper-airplane"
           size="xl"
+          color="orange"
           :ui="{
             rounded: 'rounded-full',
           }"
+          class="shadow-md bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
         />
       </div>
     </form>

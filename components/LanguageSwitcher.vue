@@ -5,10 +5,10 @@
       :key="locale.code"
       @click="switchLocale(locale.code)"
       :class="[
-        'px-3 py-1 rounded-md text-sm font-medium transition-colors',
+        'px-3 py-1 rounded-md text-sm font-medium transition-all shadow-sm',
         currentLocale === locale.code
-          ? 'bg-primary-500 text-white'
-          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md'
+          : 'bg-white text-orange-700 hover:bg-orange-50 border border-orange-200'
       ]"
     >
       {{ locale.name }}

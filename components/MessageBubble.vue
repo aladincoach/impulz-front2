@@ -3,9 +3,9 @@
     <div :class="bubbleClass">
       <template v-if="message.isLoading">
         <div class="flex items-center gap-1">
-          <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
-          <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
-          <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+          <div class="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+          <div class="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+          <div class="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
         </div>
       </template>
       <template v-else>
@@ -34,12 +34,12 @@ const containerClass = computed(() => {
 })
 
 const bubbleClass = computed(() => {
-  const baseClass = 'max-w-[80%] md:max-w-[70%] lg:max-w-[60%] px-4 py-3 break-words'
+  const baseClass = 'max-w-[80%] md:max-w-[70%] lg:max-w-[60%] px-4 py-3 break-words shadow-md'
   
   if (props.message.isUser) {
-    return `${baseClass} bg-[#FFA07A] text-gray-900 rounded-xl rounded-tr-none`
+    return `${baseClass} bg-gradient-to-br from-orange-400 to-orange-500 text-white rounded-xl rounded-tr-none`
   } else {
-    return `${baseClass} bg-gray-100 text-gray-900 rounded-xl rounded-tl-none`
+    return `${baseClass} bg-gradient-to-br from-white to-orange-50 text-gray-900 rounded-xl rounded-tl-none border border-orange-100`
   }
 })
 </script>

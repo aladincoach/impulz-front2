@@ -1,9 +1,9 @@
 <template>
-  <div class="h-screen flex flex-col bg-white">
+  <div class="h-screen flex flex-col bg-transparent">
     <!-- Header -->
-    <header class="border-b border-gray-200 bg-white sticky top-0 z-10">
+    <header class="border-b border-orange-200 bg-gradient-to-r from-orange-50 to-peach-50 backdrop-blur-sm sticky top-0 z-10 shadow-sm">
       <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-        <h1 class="text-xl font-semibold text-gray-900">{{ $t('chat.title') }}</h1>
+        <h1 class="text-xl font-semibold text-orange-900">{{ $t('chat.title') }}</h1>
         <LanguageSwitcher />
       </div>
     </header>
@@ -16,7 +16,7 @@
       <div class="max-w-4xl mx-auto pt-6">
         <!-- Welcome message when no messages -->
         <div v-if="messages.length === 0" class="flex items-center justify-center h-full px-4">
-          <div class="text-center text-gray-400">
+          <div class="text-center text-orange-400">
             <p class="text-lg">{{ $t('chat.welcomeMessage') }}</p>
           </div>
         </div>
@@ -31,7 +31,7 @@
     </div>
 
     <!-- Fixed Input at Bottom -->
-    <div class="sticky bottom-0 bg-white">
+    <div class="sticky bottom-0 bg-gradient-to-r from-orange-50 to-peach-50 backdrop-blur-sm">
       <ChatInput @send="handleSendMessage" :disabled="isWaitingForResponse" />
     </div>
   </div>
