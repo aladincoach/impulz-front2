@@ -3,7 +3,14 @@ import { Client } from '@notionhq/client'
 // Cache pour le system prompt
 let cachedPrompt: string | null = null
 let cacheTimestamp: number = 0
-const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes en millisecondes
+
+// Durée du cache en secondes (configurable via variable d'environnement)
+// Par défaut : 300 secondes (5 minutes)
+function getCacheDuration(): number {
+  const envSeconds = process.env.NOTION_CACHE_SECONDS
+  const seconds = envSeconds ? parseInt(envSeconds, 10) : 300
+  return seconds * 1000 // Convertir en millisecondes
+}
 
 interface NotionConfig {
   apiKey: string
@@ -167,8 +174,12 @@ export async function getSystemPromptFromNotion(useCache: boolean = true): Promi
   
   // Vérifier si on peut utiliser le cache
   const now = Date.now()
-  if (useCache && cachedPrompt && (now - cacheTimestamp) < CACHE_DURATION) {
-    console.log('✅ [NOTION] Using cached prompt (age:', Math.round((now - cacheTimestamp) / 1000), 'seconds)')
+  const cacheDuration = getCacheDuration()
+  
+  if (useCache && cachedPrompt && (now - cacheTimestamp) < cacheDuration) {
+    const ageSeconds = Math.round((now - cacheTimestamp) / 1000)
+    const durationSeconds = Math.round(cacheDuration / 1000)
+    console.log('✅ [NOTION] Using cached prompt (age:', ageSeconds, 'seconds, expires after', durationSeconds, 'seconds)')
     return cachedPrompt
   }
   

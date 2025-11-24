@@ -82,6 +82,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 # Nouveau
 NOTION_API_KEY=secret_...
 NOTION_PROMPT_PAGE_ID=abc123def456...
+NOTION_CACHE_SECONDS=300  # Optionnel, 300 secondes (5 min) par défaut
 ```
 
 ### Netlify
@@ -114,7 +115,7 @@ Voir [NOTION_SETUP.md](./NOTION_SETUP.md) pour les détails complets.
 
 ## 🚀 Performance
 
-- **Cache de 5 minutes** : Réduit les appels API Notion
+- **Cache configurable** : Défaut 300 secondes (5 minutes) via `NOTION_CACHE_SECONDS`
 - **Pas d'impact sur le build** : Plus de copie de fichiers
 - **Même vitesse de réponse** : Le cache évite les latences
 
@@ -154,8 +155,8 @@ Le système affiche des logs détaillés :
 ## ⚠️ Points d'attention
 
 1. **Première requête** : Peut prendre 1-2 secondes (appel Notion)
-2. **Requêtes suivantes** : Instantanées (cache de 5 minutes)
-3. **Expiration du cache** : Le prompt se recharge automatiquement après 5 minutes
+2. **Requêtes suivantes** : Instantanées (cache de 300 secondes par défaut)
+3. **Expiration du cache** : Le prompt se recharge automatiquement après expiration
 4. **Erreur de configuration** : Vérifier les logs si le prompt ne charge pas
 
 ## 🆘 Dépannage
@@ -168,9 +169,10 @@ Le système affiche des logs détaillés :
 
 ### Le prompt ne se met pas à jour
 
-1. Attendre 5 minutes (expiration du cache)
-2. Ou redémarrer le serveur en dev
-3. Vérifier les logs pour confirmer le rechargement
+1. Attendre l'expiration du cache (défaut: 300 secondes)
+2. Réduire `NOTION_CACHE_SECONDS` pour le dev (ex: 60 secondes)
+3. Ou redémarrer le serveur en dev
+4. Vérifier les logs pour confirmer le rechargement
 
 ## 📚 Ressources
 

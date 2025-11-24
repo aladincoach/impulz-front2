@@ -47,6 +47,7 @@ Créez un fichier `.env` à la racine du projet :
 ANTHROPIC_API_KEY=sk-ant-...
 NOTION_API_KEY=secret_...
 NOTION_PROMPT_PAGE_ID=abc123def456...
+NOTION_CACHE_SECONDS=300  # Optionnel, 300 secondes (5 min) par défaut
 ```
 
 ## 🧪 Étape 6 : Tester
@@ -78,7 +79,7 @@ Vérifiez les logs dans la console :
 
 Maintenant vous pouvez :
 - ✏️ Modifier le prompt directement dans Notion
-- 🔄 Les changements sont pris en compte après 5 minutes max
+- 🔄 Les changements sont pris en compte après max 300 secondes (5 minutes)
 - 👥 Collaborer avec votre équipe sur le prompt
 - 📜 Garder l'historique des versions
 
@@ -91,7 +92,8 @@ Maintenant vous pouvez :
 → Vérifiez que la page est bien partagée avec l'intégration
 
 ### Le prompt ne se met pas à jour
-→ Attendez 5 minutes (cache) ou redémarrez le serveur
+→ Attendez la durée du cache (défaut: 300 secondes = 5 minutes) ou redémarrez le serveur
+→ Vous pouvez réduire `NOTION_CACHE_SECONDS` pour le dev (ex: 60 = 1 minute)
 
 ---
 
