@@ -49,6 +49,9 @@ ANTHROPIC_API_KEY=your_api_key_here
 # Notion Configuration (for dynamic system prompt)
 NOTION_API_KEY=your_notion_integration_token
 NOTION_PROMPT_PAGE_ID=your_notion_page_id
+
+# Notion Cache Duration (optional, default: 300 seconds = 5 minutes)
+NOTION_CACHE_SECONDS=300
 ```
 
 **Important**: The system prompt is now fetched from Notion for easy updates without redeployment.

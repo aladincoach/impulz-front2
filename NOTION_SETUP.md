@@ -59,6 +59,9 @@ ANTHROPIC_API_KEY=sk-ant-...
 # Notion Configuration
 NOTION_API_KEY=secret_...
 NOTION_PROMPT_PAGE_ID=abc123def456...
+
+# Notion Cache Duration (optional, default: 300 seconds = 5 minutes)
+NOTION_CACHE_SECONDS=300
 ```
 
 ### Production (Netlify)
@@ -126,7 +129,9 @@ Ask 2-3 sharp questions such as:
 
 ### Cache automatique
 
-Le système met en cache le prompt Notion pendant **5 minutes** pour optimiser les performances et réduire les appels API.
+Le système met en cache le prompt Notion pour optimiser les performances et réduire les appels API.
+
+**Durée par défaut** : 300 secondes (5 minutes) - configurable via `NOTION_CACHE_SECONDS`
 
 ### Forcer le rechargement
 
@@ -138,12 +143,17 @@ Pour forcer le rechargement du prompt sans attendre l'expiration du cache, vous 
 
 ### Configuration du cache
 
-Dans `nuxt.config.ts`, vous pouvez configurer le cache :
+Configurez la durée du cache via la variable d'environnement :
 
-```typescript
-runtimeConfig: {
-  systemPromptCache: true, // false pour désactiver le cache
-}
+```env
+# Durée en secondes (défaut: 300 = 5 minutes)
+NOTION_CACHE_SECONDS=300
+
+# Exemples d'utilisation :
+# NOTION_CACHE_SECONDS=60    # Cache de 60 secondes / 1 minute (dev)
+# NOTION_CACHE_SECONDS=300   # Cache de 5 minutes (recommandé)
+# NOTION_CACHE_SECONDS=600   # Cache de 10 minutes (production)
+# NOTION_CACHE_SECONDS=0     # Pas de cache (déconseillé)
 ```
 
 ## Avantages de cette approche
