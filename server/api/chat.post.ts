@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { getSystemPromptFromNotion } from '../utils/notion'
+import { getWorkflowPrompt } from '../utils/systemPrompt'
 
 export default defineEventHandler(async (event) => {
   const { message, conversationHistory } = await readBody(event)
@@ -16,11 +17,11 @@ export default defineEventHandler(async (event) => {
 
   const config = useRuntimeConfig(event)
   const useCache = config.systemPromptCache
-  const apiKey = process.env.ANTHROPIC_API_KEY // ✅ lu à l’exécution, pas au build
+  const apiKey = process.env.ANTHROPIC_API_KEY // ✅ lu à l'exécution, pas au build
   if (!apiKey) return { statusCode: 500, body: 'Missing ANTHROPIC_API_KEY' }
 
   console.log('✅ [API] API Key présente (length:', apiKey.length, ')')
-  console.log('⚙️  [CONFIG] Cache system prompt:', useCache ? 'activé' : 'désactivé')
+  console.log('⚙️  [CONFIG] Cache system prompt:', useCache ? 'activé (hardcoded)' : 'désactivé (from Notion)')
 
   const client = new Anthropic({
     apiKey: apiKey
@@ -48,8 +49,17 @@ export default defineEventHandler(async (event) => {
 
     console.log('📤 [API] Envoi à Claude avec', messages.length, 'messages')
 
-    // Charger le system prompt depuis Notion
-    const systemPrompt = await getSystemPromptFromNotion(useCache)
+    // Charger le system prompt (hardcoded si cache activé, sinon depuis Notion)
+    let systemPrompt: string
+    if (useCache) {
+      // Utiliser le system prompt hardcodé depuis system-prompt.md
+      systemPrompt = getWorkflowPrompt()
+      console.log('📝 [DEBUG] Using hardcoded system prompt from system-prompt.md')
+    } else {
+      // Charger le system prompt depuis Notion
+      systemPrompt = await getSystemPromptFromNotion(useCache)
+      console.log('📝 [DEBUG] System prompt fetched from Notion')
+    }
     console.log('📝 [DEBUG] System prompt type:', typeof systemPrompt)
     console.log('📝 [DEBUG] System prompt preview:', systemPrompt.substring(0, 100))
 
