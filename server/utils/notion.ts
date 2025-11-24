@@ -162,39 +162,96 @@ function richTextToString(richText: any[]): string {
 }
 
 /**
- * Récupère le system prompt depuis Notion avec cache
+ * Cache pour les prompts multiples (base + stages)
  */
-export async function getSystemPromptFromNotion(useCache: boolean = true): Promise<string> {
+interface PromptCache {
+  content: string
+  timestamp: number
+}
+
+const promptCaches = new Map<string, PromptCache>()
+
+/**
+ * Récupère un prompt depuis Notion avec cache
+ */
+async function getPromptFromNotion(
+  cacheKey: string, 
+  pageId: string | undefined, 
+  useCache: boolean = true
+): Promise<string | null> {
   const apiKey = process.env.NOTION_API_KEY
-  const pageId = process.env.NOTION_PROMPT_PAGE_ID
   
   if (!apiKey || !pageId) {
-    throw new Error('Missing NOTION_API_KEY or NOTION_PROMPT_PAGE_ID environment variables')
+    return null
   }
   
   // Vérifier si on peut utiliser le cache
   const now = Date.now()
   const cacheDuration = getCacheDuration()
+  const cached = promptCaches.get(cacheKey)
   
-  if (useCache && cachedPrompt && (now - cacheTimestamp) < cacheDuration) {
-    const ageSeconds = Math.round((now - cacheTimestamp) / 1000)
+  if (useCache && cached && (now - cached.timestamp) < cacheDuration) {
+    const ageSeconds = Math.round((now - cached.timestamp) / 1000)
     const durationSeconds = Math.round(cacheDuration / 1000)
-    console.log('✅ [NOTION] Using cached prompt (age:', ageSeconds, 'seconds, expires after', durationSeconds, 'seconds)')
-    return cachedPrompt
+    console.log(`✅ [NOTION] Using cached ${cacheKey} (age: ${ageSeconds}s, expires after ${durationSeconds}s)`)
+    return cached.content
   }
   
   // Sinon, récupérer depuis Notion
-  console.log('🔄 [NOTION] Cache miss or disabled, fetching from Notion...')
-  const prompt = await fetchNotionPageContent({ apiKey, pageId })
+  console.log(`🔄 [NOTION] Fetching ${cacheKey} from Notion...`)
+  try {
+    const prompt = await fetchNotionPageContent({ apiKey, pageId })
+    
+    // Mettre en cache
+    if (useCache) {
+      promptCaches.set(cacheKey, { content: prompt, timestamp: now })
+      console.log(`✅ [NOTION] ${cacheKey} cached`)
+    }
+    
+    return prompt
+  } catch (error: any) {
+    console.error(`❌ [NOTION] Error fetching ${cacheKey}:`, error.message)
+    return null
+  }
+}
+
+/**
+ * Récupère le system prompt depuis Notion avec cache (legacy)
+ */
+export async function getSystemPromptFromNotion(useCache: boolean = true): Promise<string> {
+  const pageId = process.env.NOTION_PROMPT_PAGE_ID
   
-  // Mettre en cache
-  if (useCache) {
-    cachedPrompt = prompt
-    cacheTimestamp = now
-    console.log('✅ [NOTION] Prompt cached')
+  if (!pageId) {
+    throw new Error('Missing NOTION_PROMPT_PAGE_ID environment variable')
+  }
+  
+  const prompt = await getPromptFromNotion('system_prompt', pageId, useCache)
+  
+  if (!prompt) {
+    throw new Error('Failed to fetch system prompt from Notion')
   }
   
   return prompt
+}
+
+/**
+ * Récupère le base prompt depuis Notion
+ */
+export async function getBasePromptFromNotion(useCache: boolean = true): Promise<string | null> {
+  const pageId = process.env.NOTION_BASEPROMPT
+  return getPromptFromNotion('base_prompt', pageId, useCache)
+}
+
+/**
+ * Récupère un stage prompt depuis Notion
+ */
+export async function getStagePromptFromNotion(
+  stageNumber: number, 
+  useCache: boolean = true
+): Promise<string | null> {
+  const envVar = `NOTION_STAGEPROMPT_${stageNumber}`
+  const pageId = process.env[envVar]
+  return getPromptFromNotion(`stage_${stageNumber}`, pageId, useCache)
 }
 
 /**
@@ -203,6 +260,7 @@ export async function getSystemPromptFromNotion(useCache: boolean = true): Promi
 export function clearNotionCache(): void {
   cachedPrompt = null
   cacheTimestamp = 0
-  console.log('🔄 [NOTION] Cache cleared')
+  promptCaches.clear()
+  console.log('🔄 [NOTION] All caches cleared')
 }
 

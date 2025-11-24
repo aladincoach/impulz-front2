@@ -11,7 +11,10 @@ export default defineNuxtConfig({
     preference: 'light'
   },
   runtimeConfig: {
-    systemPromptCache: process.env.SYSTEM_PROMPT_CACHE
+    systemPromptCache: process.env.SYSTEM_PROMPT_CACHE,
+    public: {
+      useWorkflow: process.env.USE_WORKFLOW !== 'false' // Default to true
+    }
   },
   nitro: {
     preset: 'netlify',
