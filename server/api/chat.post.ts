@@ -73,8 +73,9 @@ export default defineEventHandler(async (event) => {
       console.log('🔄 [WORKFLOW] Current stage:', conversationState.currentStage)
       console.log('🔄 [WORKFLOW] Completed stages:', conversationState.completedStages.join(', '))
       
-      const basePrompt = getBaseSystemPrompt()
-      const stagePrompt = getStagePrompt(conversationState)
+      // Load prompts (async - tries Notion first, falls back to hardcoded)
+      const basePrompt = await getBaseSystemPrompt(useCache)
+      const stagePrompt = await getStagePrompt(conversationState, useCache)
       
       systemPrompt = `${basePrompt}\n\n---\n\n${stagePrompt}`
       

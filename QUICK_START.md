@@ -12,6 +12,12 @@ ANTHROPIC_API_KEY=your_api_key_here
 
 # Recommended (enables workflow mode)
 USE_WORKFLOW=true
+
+# Optional: Load prompts from Notion (falls back to hardcoded if not set)
+# NOTION_API_KEY=secret_your_token
+# NOTION_BASEPROMPT=your_page_id
+# NOTION_STAGEPROMPT_1=your_page_id
+# ... etc (see NOTION_WORKFLOW_SETUP.md for details)
 ```
 
 ### 2. Install Dependencies

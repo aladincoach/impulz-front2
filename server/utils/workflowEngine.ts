@@ -32,25 +32,26 @@ export function initializeConversationState(): ConversationState {
 
 /**
  * Get the appropriate prompt for the current stage
+ * Now async to support Notion loading
  */
-export function getStagePrompt(state: ConversationState): string {
+export async function getStagePrompt(state: ConversationState, useCache: boolean = true): Promise<string> {
   switch (state.currentStage) {
     case 'intent_understanding':
-      return getStage1Prompt()
+      return await getStage1Prompt(useCache)
     case 'project_understanding':
-      return getStage2Prompt()
+      return await getStage2Prompt(useCache)
     case 'project_progress':
-      return getStage3Prompt()
+      return await getStage3Prompt(useCache)
     case 'underlying_problem':
-      return getStage4Prompt(state)
+      return await getStage4Prompt(state, useCache)
     case 'action':
-      return getStage5Prompt()
+      return await getStage5Prompt(useCache)
     case 'guidance':
-      return getStage6Prompt(state.wantsGuidance || false)
+      return await getStage6Prompt(state.wantsGuidance || false, useCache)
     case 'debrief':
-      return getStage7Prompt()
+      return await getStage7Prompt(useCache)
     default:
-      return getStage1Prompt()
+      return await getStage1Prompt(useCache)
   }
 }
 

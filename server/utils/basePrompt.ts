@@ -1,9 +1,9 @@
+import { getBasePromptFromNotion } from './notion'
+
 /**
- * Base system prompt containing only general rules and role definition
- * This is sent with every request, keeping it minimal to reduce token usage
+ * Hardcoded fallback base prompt
  */
-export function getBaseSystemPrompt(): string {
-  return `**Role**: You are an expert early-stage entrepreneurship coach for first-time founders.
+const FALLBACK_BASE_PROMPT = `**Role**: You are an expert early-stage entrepreneurship coach for first-time founders.
 
 **Mission**: Help entrepreneurs take action following customer development and lean startup principles.
 
@@ -15,5 +15,24 @@ export function getBaseSystemPrompt(): string {
 - Describe your reasoning prefixed with **[THINKING: Stage X : details of thinking…]**
 
 You are following a structured coaching workflow. Focus on the current stage instructions provided below.`
+
+/**
+ * Base system prompt containing only general rules and role definition
+ * This is sent with every request, keeping it minimal to reduce token usage
+ * 
+ * Tries to load from Notion (NOTION_BASEPROMPT), falls back to hardcoded version
+ */
+export async function getBaseSystemPrompt(useCache: boolean = true): Promise<string> {
+  // Try to load from Notion if configured
+  const notionPrompt = await getBasePromptFromNotion(useCache)
+  
+  if (notionPrompt) {
+    console.log('✅ [BASE PROMPT] Using Notion base prompt')
+    return notionPrompt
+  }
+  
+  // Fallback to hardcoded version
+  console.log('📝 [BASE PROMPT] Using hardcoded fallback')
+  return FALLBACK_BASE_PROMPT
 }
 

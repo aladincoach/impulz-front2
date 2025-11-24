@@ -64,10 +64,24 @@ USE_WORKFLOW=true
 # Set to 'true' to use hardcoded prompt instead of fetching from Notion
 SYSTEM_PROMPT_CACHE=false
 
-# Notion Configuration (optional, for legacy mode)
+# Notion Configuration (optional - for workflow prompts)
 NOTION_API_KEY=your_notion_integration_token
-NOTION_PROMPT_PAGE_ID=your_notion_page_id
+
+# Notion Page IDs for workflow prompts (optional - falls back to hardcoded if not set)
+NOTION_BASEPROMPT=your_base_prompt_page_id
+NOTION_STAGEPROMPT_1=your_stage1_page_id
+NOTION_STAGEPROMPT_2=your_stage2_page_id
+NOTION_STAGEPROMPT_3=your_stage3_page_id
+NOTION_STAGEPROMPT_4=your_stage4_page_id
+NOTION_STAGEPROMPT_5=your_stage5_page_id
+NOTION_STAGEPROMPT_6=your_stage6_page_id
+NOTION_STAGEPROMPT_7=your_stage7_page_id
+
+# Notion cache duration (optional, default: 300 seconds = 5 minutes)
 NOTION_CACHE_SECONDS=300
+
+# Legacy Notion configuration (for monolithic prompt mode)
+NOTION_PROMPT_PAGE_ID=your_legacy_prompt_page_id
 ```
 
 **Important**: 
