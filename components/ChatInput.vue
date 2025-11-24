@@ -1,30 +1,28 @@
 <template>
-  <div class="border-t border-gray-200 bg-white p-4">
-    <form @submit.prevent="handleSubmit" class="max-w-4xl mx-auto">
-      <div class="flex gap-3 items-center">
-        <UInput
-          v-model="inputText"
-          :placeholder="$t('chat.inputPlaceholder')"
-          size="xl"
-          :ui="{ 
-            base: 'flex-1',
-            rounded: 'rounded-full',
-          }"
-          autocomplete="off"
-          :disabled="disabled"
-        />
-        <UButton
-          type="submit"
-          :disabled="!inputText.trim() || disabled"
-          icon="i-heroicons-paper-airplane"
-          size="xl"
-          :ui="{
-            rounded: 'rounded-full',
-          }"
-        />
-      </div>
-    </form>
-  </div>
+  <form @submit.prevent="handleSubmit">
+    <div class="flex gap-3 items-center justify-center">
+      <UInput
+        v-model="inputText"
+        :placeholder="$t('chat.inputPlaceholder')"
+        size="xl"
+        :ui="{ 
+          base: 'flex-1',
+          rounded: 'rounded-full',
+        }"
+        autocomplete="off"
+        :disabled="disabled"
+      />
+      <UButton
+        type="submit"
+        :disabled="!inputText.trim() || disabled"
+        icon="i-heroicons-paper-airplane"
+        size="xl"
+        :ui="{
+          rounded: 'rounded-full',
+        }"
+      />
+    </div>
+  </form>
 </template>
 
 <script setup lang="ts">

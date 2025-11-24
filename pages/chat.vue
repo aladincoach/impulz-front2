@@ -31,8 +31,10 @@
     </div>
 
     <!-- Fixed Input at Bottom -->
-    <div class="sticky bottom-0 bg-white">
-      <ChatInput @send="handleSendMessage" :disabled="isWaitingForResponse" />
+    <div class="sticky bottom-0 bg-white  border-gray-200">
+      <div class="max-w-4xl mx-auto px-4 py-4">
+        <ChatInput @send="handleSendMessage" :disabled="isWaitingForResponse" />
+      </div>
     </div>
   </div>
 </template>

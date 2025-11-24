@@ -1,7 +1,7 @@
 {
   "chat": {
-    "title": "Chat",
-    "pageTitle": "Chat - Chatbot IA",
+    "title": "Impulz",
+    "pageTitle": "Impulz- le coach IA de l'entrepreneur.e",
     "welcomeMessage": "Comment puis-je vous aider aujourd'hui ?",
     "inputPlaceholder": "Écrivez votre message...",
     "send": "Envoyer"

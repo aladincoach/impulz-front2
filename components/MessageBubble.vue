@@ -53,12 +53,12 @@ const containerClass = computed(() => {
 })
 
 const bubbleClass = computed(() => {
-  const baseClass = 'max-w-[80%] md:max-w-[70%] lg:max-w-[60%] px-4 py-3 break-words'
+  const baseClass = 'max-w-[80%] px-4 py-3 break-words'
   
   if (props.message.isUser) {
-    return `${baseClass} bg-[#FFA07A] text-gray-900 rounded-xl rounded-tr-none`
+    return `${baseClass} bg-[#FAECE0] text-gray-900 rounded-xl rounded-tr-none`
   } else {
-    return `${baseClass} bg-gray-100 text-gray-900 rounded-xl rounded-tl-none`
+    return `${baseClass} text-gray-900 rounded-xl rounded-tl-none`
   }
 })
 
