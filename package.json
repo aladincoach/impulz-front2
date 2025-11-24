@@ -9,7 +9,9 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "start": "nuxt start"
+    "start": "nuxt start",
+    "clean": "node scripts/clean-cache.js",
+    "clean:all": "npm run clean && rmdir /s /q node_modules 2>nul || rm -rf node_modules"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
