@@ -100,7 +100,7 @@ export default defineEventHandler(async (event) => {
     const stream = await client.messages.stream({
       model: 'claude-3-5-haiku-20241022',
       max_tokens: 4096,
-      temperature: 0.2,
+      temperature: 0.0,
       system: systemPrompt,
       messages: messages
     })

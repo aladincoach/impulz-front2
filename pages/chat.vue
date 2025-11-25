@@ -26,19 +26,22 @@
           v-for="message in messages"
           :key="message.id"
           :message="message"
+          @option-click="handleOptionClick"
         />
       </div>
     </div>
 
     <!-- Fixed Input at Bottom -->
-    <div class="sticky bottom-0 bg-white">
-      <ChatInput @send="handleSendMessage" :disabled="isWaitingForResponse" />
+    <div class="sticky bottom-0 bg-white  border-gray-200">
+      <div class="max-w-7xl mx-auto px-4 py-4">
+        <ChatInput ref="chatInputRef" @send="handleSendMessage" :disabled="isWaitingForResponse" />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, computed } from 'vue'
+import { ref, nextTick, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 interface Message {
@@ -50,9 +53,75 @@ interface Message {
 
 const messages = ref<Message[]>([])
 const messagesContainer = ref<HTMLElement | null>(null)
+const chatInputRef = ref()
 const isWaitingForResponse = ref(false)
+const availableOptions = ref<string[]>([])
+
+// Extract options from the last bot message
+const updateAvailableOptions = () => {
+  const lastBotMessage = [...messages.value].reverse().find(m => !m.isUser && !m.isLoading)
+  if (lastBotMessage) {
+    // Parse options from the message text - look for ordered lists starting with "1. "
+    const lines = lastBotMessage.text.split('\n')
+    const options: string[] = []
+    let foundStart = false
+    let expectedNum = 1
+    
+    for (const line of lines) {
+      const trimmedLine = line.trim()
+      
+      if (trimmedLine && new RegExp(`^${expectedNum}\\.\\s+`).test(trimmedLine)) {
+        foundStart = true
+        options.push(trimmedLine.replace(/^\d+\.\s+/, '').trim())
+        expectedNum++
+      } else if (foundStart && trimmedLine === '') {
+        // Empty line - check if list continues
+        continue
+      } else if (foundStart && options.length >= 2) {
+        // Non-empty, non-numbered line after we have options - stop
+        break
+      }
+    }
+    
+    // Only set options if we have at least 2
+    availableOptions.value = options.length >= 2 ? options : []
+  } else {
+    availableOptions.value = []
+  }
+}
+
+// Handle keyboard shortcuts for options
+const handleKeyPress = (event: KeyboardEvent) => {
+  // Only handle number keys when there are options available and not waiting for response
+  if (availableOptions.value.length > 0 && !isWaitingForResponse.value) {
+    const key = event.key
+    const num = parseInt(key)
+    if (!isNaN(num) && num >= 1 && num <= availableOptions.value.length) {
+      // Check if user is not typing in the input field
+      const activeElement = document.activeElement
+      const isInputFocused = activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA'
+      
+      if (!isInputFocused) {
+        event.preventDefault()
+        const selectedOption = availableOptions.value[num - 1]
+        handleSendMessage(selectedOption)
+      }
+    }
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeyPress)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyPress)
+})
 
 const handleSendMessage = async (text: string) => {
+  // Clear available options when user sends a message
+  availableOptions.value = []
+  
   // Add user message
   const userMessage: Message = {
     id: `user-${Date.now()}`,
@@ -148,6 +217,11 @@ const handleSendMessage = async (text: string) => {
             if (data === '[DONE]') {
               console.log('✅ [Frontend] Signal [DONE] reçu')
               isWaitingForResponse.value = false
+              // Update available options after bot response
+              nextTick(() => {
+                updateAvailableOptions()
+                chatInputRef.value?.focus()
+              })
               break
             }
             
@@ -179,6 +253,11 @@ const handleSendMessage = async (text: string) => {
     }
     
     isWaitingForResponse.value = false
+    // Update available options and focus input after bot response completes
+    nextTick(() => {
+      updateAvailableOptions()
+      chatInputRef.value?.focus()
+    })
   } catch (error) {
     console.error('❌ [Frontend] Error sending message:', error)
     isWaitingForResponse.value = false
@@ -193,6 +272,10 @@ const handleSendMessage = async (text: string) => {
         isLoading: false
       }
     }
+    // Focus input after error
+    nextTick(() => {
+      chatInputRef.value?.focus()
+    })
   }
 }
 
@@ -200,6 +283,11 @@ const scrollToBottom = () => {
   if (messagesContainer.value) {
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
   }
+}
+
+const handleOptionClick = (option: string) => {
+  // Send the selected option as a new message
+  handleSendMessage(option)
 }
 
 // Internationalization

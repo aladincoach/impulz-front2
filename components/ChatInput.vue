@@ -1,34 +1,39 @@
 <template>
-  <div class="border-t border-gray-200 bg-white p-4">
-    <form @submit.prevent="handleSubmit" class="max-w-4xl mx-auto">
-      <div class="flex gap-3 items-center">
-        <UInput
-          v-model="inputText"
-          :placeholder="$t('chat.inputPlaceholder')"
-          size="xl"
-          :ui="{ 
-            base: 'flex-1',
-            rounded: 'rounded-full',
-          }"
-          autocomplete="off"
-          :disabled="disabled"
-        />
-        <UButton
-          type="submit"
-          :disabled="!inputText.trim() || disabled"
-          icon="i-heroicons-paper-airplane"
-          size="xl"
-          :ui="{
-            rounded: 'rounded-full',
-          }"
-        />
-      </div>
-    </form>
-  </div>
+  <form @submit.prevent="handleSubmit">
+    <div class="flex gap-3 items-end justify-center">
+      <UTextarea
+        ref="inputRef"
+        v-model="inputText"
+        :placeholder="$t('chat.inputPlaceholder')"
+        :rows="1"
+        :cols="80"
+        autoresize
+        :ui="{ 
+          base: 'flex-1',
+          rounded: 'rounded-2xl',
+        }"
+        autocomplete="off"
+        :disabled="disabled"
+        @keydown.enter.exact.prevent="handleSubmit"
+      />
+      <UButton
+        type="submit"
+        :disabled="!inputText.trim() || disabled"
+        icon="i-heroicons-paper-airplane"
+        size="xl"
+        :ui="{
+          rounded: 'rounded-full',
+        }"
+      />
+    </div>
+  </form>
 </template>
 
 <script setup lang="ts">
+import { ref, nextTick } from 'vue'
+
 const inputText = ref('')
+const inputRef = ref()
 
 defineProps<{
   disabled?: boolean
@@ -45,5 +50,16 @@ const handleSubmit = () => {
     inputText.value = ''
   }
 }
+
+// Expose focus method to parent
+const focus = () => {
+  nextTick(() => {
+    inputRef.value?.$el?.querySelector('textarea')?.focus()
+  })
+}
+
+defineExpose({
+  focus
+})
 </script>
 
