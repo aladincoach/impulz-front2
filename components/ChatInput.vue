@@ -1,16 +1,20 @@
 <template>
   <form @submit.prevent="handleSubmit">
-    <div class="flex gap-3 items-center justify-center">
-      <UInput
+    <div class="flex gap-3 items-end justify-center">
+      <UTextarea
+        ref="inputRef"
         v-model="inputText"
         :placeholder="$t('chat.inputPlaceholder')"
-        size="xl"
+        :rows="1"
+        :cols="80"
+        autoresize
         :ui="{ 
           base: 'flex-1',
-          rounded: 'rounded-full',
+          rounded: 'rounded-2xl',
         }"
         autocomplete="off"
         :disabled="disabled"
+        @keydown.enter.exact.prevent="handleSubmit"
       />
       <UButton
         type="submit"
@@ -26,7 +30,10 @@
 </template>
 
 <script setup lang="ts">
+import { ref, nextTick } from 'vue'
+
 const inputText = ref('')
+const inputRef = ref()
 
 defineProps<{
   disabled?: boolean
@@ -43,5 +50,16 @@ const handleSubmit = () => {
     inputText.value = ''
   }
 }
+
+// Expose focus method to parent
+const focus = () => {
+  nextTick(() => {
+    inputRef.value?.$el?.querySelector('textarea')?.focus()
+  })
+}
+
+defineExpose({
+  focus
+})
 </script>
 
