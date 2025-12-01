@@ -1,9 +1,5 @@
 import { Client } from '@notionhq/client'
 
-// Cache pour le system prompt
-let cachedPrompt: string | null = null
-let cacheTimestamp: number = 0
-
 // Durée du cache en secondes (configurable via variable d'environnement)
 // Par défaut : 300 secondes (5 minutes)
 function getCacheDuration(): number {
@@ -216,25 +212,6 @@ async function getPromptFromNotion(
 }
 
 /**
- * Récupère le system prompt depuis Notion avec cache (legacy)
- */
-export async function getSystemPromptFromNotion(useCache: boolean = true): Promise<string> {
-  const pageId = process.env.NOTION_PROMPT_PAGE_ID
-  
-  if (!pageId) {
-    throw new Error('Missing NOTION_PROMPT_PAGE_ID environment variable')
-  }
-  
-  const prompt = await getPromptFromNotion('system_prompt', pageId, useCache)
-  
-  if (!prompt) {
-    throw new Error('Failed to fetch system prompt from Notion')
-  }
-  
-  return prompt
-}
-
-/**
  * Récupère le base prompt depuis Notion
  */
 export async function getBasePromptFromNotion(useCache: boolean = true): Promise<string | null> {
@@ -258,8 +235,6 @@ export async function getStagePromptFromNotion(
  * Force le rechargement du cache
  */
 export function clearNotionCache(): void {
-  cachedPrompt = null
-  cacheTimestamp = 0
   promptCaches.clear()
   console.log('🔄 [NOTION] All caches cleared')
 }

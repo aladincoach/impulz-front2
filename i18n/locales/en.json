@@ -4,7 +4,8 @@
     "pageTitle": "Chat - AI Chatbot",
     "welcomeMessage": "How can I help you today?",
     "inputPlaceholder": "Write your message...",
-    "send": "Send"
+    "send": "Send",
+    "fallbackWarning": "Due to connection issues to the prompt database, the system is based on a previous version"
   },
   "common": {
     "loading": "Loading...",

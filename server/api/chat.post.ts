@@ -1,5 +1,4 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { getSystemPromptFromNotion } from '../utils/notion'
 import { getBaseSystemPrompt } from '../utils/basePrompt'
 import { 
   getConversationState, 
@@ -63,6 +62,7 @@ export default defineEventHandler(async (event) => {
 
     // Construire le system prompt selon le mode
     let systemPrompt: string
+    let usedFallback = false
     
     if (useWorkflow) {
       // Mode workflow: utiliser base prompt + stage prompt
@@ -75,21 +75,19 @@ export default defineEventHandler(async (event) => {
       
       // Load prompts (async - tries Notion first, falls back to hardcoded)
       const basePrompt = await getBaseSystemPrompt(useCache)
-      const stagePrompt = await getStagePrompt(conversationState, useCache)
+      const stagePromptResult = await getStagePrompt(conversationState, useCache)
       
-      systemPrompt = `${basePrompt}\n\n---\n\n${stagePrompt}`
+      systemPrompt = `${basePrompt}\n\n---\n\n${stagePromptResult.prompt}`
+      usedFallback = stagePromptResult.usedFallback
       
       console.log('📝 [DEBUG] Using workflow-based system prompt')
       console.log('📝 [DEBUG] Stage:', conversationState.currentStage)
+      console.log('📝 [DEBUG] Used fallback:', usedFallback)
     } else if (useCache) {
       // Mode legacy avec cache
       const { getWorkflowPrompt } = await import('../utils/systemPrompt')
       systemPrompt = getWorkflowPrompt()
       console.log('📝 [DEBUG] Using hardcoded system prompt from system-prompt.md')
-    } else {
-      // Mode legacy depuis Notion
-      systemPrompt = await getSystemPromptFromNotion(useCache)
-      console.log('📝 [DEBUG] System prompt fetched from Notion')
     }
     
     console.log('📝 [DEBUG] System prompt type:', typeof systemPrompt)
@@ -122,6 +120,11 @@ export default defineEventHandler(async (event) => {
     const readableStream = new ReadableStream({
       async start(controller) {
         try {
+          // Send metadata at the start if using fallback
+          if (usedFallback) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ metadata: { usedFallback: true } })}\n\n`))
+          }
+          
           for await (const chunk of stream) {
             if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
               const text = chunk.delta.text

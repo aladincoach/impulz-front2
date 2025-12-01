@@ -16,7 +16,7 @@ npm install @notionhq/client
 
 Utilitaire pour récupérer et convertir le contenu Notion en Markdown :
 
-- **Fonction principale** : `getSystemPromptFromNotion(useCache)`
+- **Fonctions principales** : `getBasePromptFromNotion()`, `getStagePromptFromNotion(stageNumber)`
 - **Cache intelligent** : 5 minutes de cache pour optimiser les performances
 - **Conversion Markdown** : Supporte tous les types de blocs Notion (titres, listes, code, etc.)
 - **Gestion d'erreurs** : Logs détaillés et messages d'erreur explicites
@@ -29,8 +29,8 @@ Utilitaire pour récupérer et convertir le contenu Notion en Markdown :
 - ~110 lignes de code de chargement complexe
 
 **Après** :
-- Simple import de `getSystemPromptFromNotion`
-- 2 lignes de code pour charger le prompt
+- Simple import de `getBasePromptFromNotion` et `getStagePromptFromNotion`
+- Quelques lignes de code pour charger les prompts
 - Plus propre et maintenable
 
 ### 4. Modification : `netlify.toml`
@@ -81,23 +81,24 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 # Nouveau
 NOTION_API_KEY=secret_...
-NOTION_PROMPT_PAGE_ID=abc123def456...
+NOTION_BASEPROMPT=xxx  # Optionnel, pour le base prompt
+NOTION_STAGEPROMPT_1=xxx  # Optionnel, pour les stage prompts
 NOTION_CACHE_SECONDS=300  # Optionnel, 300 secondes (5 min) par défaut
 ```
 
 ### Netlify
 
-Ajouter les 2 nouvelles variables dans **Site settings → Environment variables** :
+Ajouter la nouvelle variable dans **Site settings → Environment variables** :
 - `NOTION_API_KEY`
-- `NOTION_PROMPT_PAGE_ID`
+- Optionnellement : `NOTION_BASEPROMPT`, `NOTION_STAGEPROMPT_1`, etc.
 
 ## 📋 Étapes de configuration Notion
 
 1. **Créer une intégration** sur https://www.notion.so/my-integrations
 2. **Copier le token** (commence par `secret_`)
-3. **Créer une page** avec le system prompt
-4. **Partager la page** avec l'intégration
-5. **Copier l'ID** de la page (depuis l'URL)
+3. **Créer des pages** pour les prompts (base prompt et stage prompts)
+4. **Partager les pages** avec l'intégration
+5. **Copier les IDs** des pages (depuis les URLs)
 6. **Configurer les variables** d'environnement
 
 Voir [NOTION_SETUP.md](./NOTION_SETUP.md) pour les détails complets.
@@ -123,7 +124,7 @@ Voir [NOTION_SETUP.md](./NOTION_SETUP.md) pour les détails complets.
 
 ### En développement
 
-1. Configurer le `.env` avec les 3 variables
+1. Configurer le `.env` avec les variables nécessaires
 2. Lancer `npm run dev`
 3. Tester le chat sur http://localhost:3000/chat
 
