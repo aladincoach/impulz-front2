@@ -4,7 +4,8 @@
     "pageTitle": "Impulz- le coach IA de l'entrepreneur.e",
     "welcomeMessage": "Comment puis-je vous aider aujourd'hui ?",
     "inputPlaceholder": "Écrivez votre message...",
-    "send": "Envoyer"
+    "send": "Envoyer",
+    "fallbackWarning": "En raison d'un problème de connexion à la base de prompts, le système est basé sur une version antérieure"
   },
   "common": {
     "loading": "Chargement...",

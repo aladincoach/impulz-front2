@@ -21,7 +21,6 @@ Use hardcoded prompts (no Notion required)
    - Added `getBasePromptFromNotion()` - Fetch base prompt
    - Added `getStagePromptFromNotion(stageNumber)` - Fetch stage prompts
    - Added multi-prompt caching system
-   - Maintained backward compatibility with legacy `getSystemPromptFromNotion()`
 
 2. **`server/utils/basePrompt.ts`**
    - Changed `getBaseSystemPrompt()` from sync to async
@@ -72,8 +71,8 @@ NOTION_STAGEPROMPT_5=your_stage5_page_id
 NOTION_STAGEPROMPT_6=your_stage6_page_id
 NOTION_STAGEPROMPT_7=your_stage7_page_id
 
-# Cache duration (optional, default: 300 seconds)
-NOTION_CACHE_SECONDS=300
+# Cache duration (optional, default: 1 seconds)
+NOTION_CACHE_SECONDS=1
 ```
 
 ### Existing Variables (Unchanged)
@@ -82,7 +81,6 @@ NOTION_CACHE_SECONDS=300
 ANTHROPIC_API_KEY=your_api_key
 USE_WORKFLOW=true
 SYSTEM_PROMPT_CACHE=false
-NOTION_PROMPT_PAGE_ID=your_legacy_prompt_page_id  # For legacy mode
 ```
 
 ## 📊 Behavior Matrix

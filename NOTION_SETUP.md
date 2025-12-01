@@ -58,7 +58,6 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 # Notion Configuration
 NOTION_API_KEY=secret_...
-NOTION_PROMPT_PAGE_ID=abc123def456...
 
 # Notion Cache Duration (optional, default: 300 seconds = 5 minutes)
 NOTION_CACHE_SECONDS=300
@@ -71,7 +70,6 @@ NOTION_CACHE_SECONDS=300
 3. Ajoutez les variables suivantes :
    - `ANTHROPIC_API_KEY` : Votre clé API Anthropic
    - `NOTION_API_KEY` : Votre token d'intégration Notion
-   - `NOTION_PROMPT_PAGE_ID` : L'ID de votre page Notion
 
 ## Format du System Prompt dans Notion
 
@@ -167,11 +165,11 @@ NOTION_CACHE_SECONDS=300
 
 ## Dépannage
 
-### Erreur : "Missing NOTION_API_KEY or NOTION_PROMPT_PAGE_ID"
+### Erreur : "Missing NOTION_API_KEY"
 
-- Vérifiez que les variables d'environnement sont bien configurées
-- Sur Netlify, vérifiez qu'elles sont définies dans les Environment Variables
-- Redéployez après avoir ajouté les variables
+- Vérifiez que la variable d'environnement est bien configurée
+- Sur Netlify, vérifiez qu'elle est définie dans les Environment Variables
+- Redéployez après avoir ajouté la variable
 
 ### Erreur : "Failed to fetch Notion page"
 

@@ -17,7 +17,8 @@ import {
   getStage4Prompt,
   getStage5Prompt,
   getStage6Prompt,
-  getStage7Prompt
+  getStage7Prompt,
+  type StagePromptResult
 } from './stagePrompts'
 
 /**
@@ -33,8 +34,9 @@ export function initializeConversationState(): ConversationState {
 /**
  * Get the appropriate prompt for the current stage
  * Now async to support Notion loading
+ * Returns both the prompt and whether a fallback was used
  */
-export async function getStagePrompt(state: ConversationState, useCache: boolean = true): Promise<string> {
+export async function getStagePrompt(state: ConversationState, useCache: boolean = true): Promise<StagePromptResult> {
   switch (state.currentStage) {
     case 'intent_understanding':
       return await getStage1Prompt(useCache)

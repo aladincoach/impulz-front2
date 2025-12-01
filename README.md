@@ -81,7 +81,6 @@ NOTION_STAGEPROMPT_7=your_stage7_page_id
 NOTION_CACHE_SECONDS=300
 
 # Legacy Notion configuration (for monolithic prompt mode)
-NOTION_PROMPT_PAGE_ID=your_legacy_prompt_page_id
 ```
 
 **Important**: 
@@ -124,7 +123,6 @@ In your Netlify dashboard, go to **Site settings → Environment variables** and
 
 - `ANTHROPIC_API_KEY`: Your Claude API key (mark it as **Secret**)
 - `NOTION_API_KEY`: Your Notion integration token (mark it as **Secret**)
-- `NOTION_PROMPT_PAGE_ID`: Your Notion page ID containing the system prompt
 
 For detailed setup instructions, see [NOTION_SETUP.md](./NOTION_SETUP.md)
 

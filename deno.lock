@@ -12,6 +12,7 @@
     "packageJson": {
       "dependencies": [
         "npm:@anthropic-ai/sdk@0.68",
+        "npm:@notionhq/client@^5.4.0",
         "npm:@nuxt/ui@^2.18.4",
         "npm:@nuxtjs/i18n@^10.2.0",
         "npm:@nuxtjs/tailwindcss@^6.12.0",

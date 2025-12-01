@@ -46,7 +46,6 @@ Créez un fichier `.env` à la racine du projet :
 ```env
 ANTHROPIC_API_KEY=sk-ant-...
 NOTION_API_KEY=secret_...
-NOTION_PROMPT_PAGE_ID=abc123def456...
 NOTION_CACHE_SECONDS=300  # Optionnel, 300 secondes (5 min) par défaut
 ```
 
@@ -69,10 +68,9 @@ Vérifiez les logs dans la console :
 
 1. Allez dans votre projet Netlify
 2. **Site settings** → **Environment variables**
-3. Ajoutez les 3 variables :
+3. Ajoutez les 2 variables :
    - `ANTHROPIC_API_KEY`
    - `NOTION_API_KEY`
-   - `NOTION_PROMPT_PAGE_ID`
 4. Redéployez (ou push sur Git)
 
 ## ✅ C'est terminé !
@@ -86,7 +84,7 @@ Maintenant vous pouvez :
 ## 🆘 Problème ?
 
 ### Erreur : "Missing NOTION_API_KEY"
-→ Vérifiez que les variables d'environnement sont bien définies
+→ Vérifiez que les variables d'environnement sont bien définies dans votre fichier .env
 
 ### Erreur : "Failed to fetch Notion page"
 → Vérifiez que la page est bien partagée avec l'intégration
