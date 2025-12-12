@@ -92,7 +92,7 @@ export default defineEventHandler(async (event) => {
     
     console.log('📝 [DEBUG] System prompt type:', typeof systemPrompt)
     console.log('📝 [DEBUG] System prompt length:', systemPrompt.length, 'chars')
-    console.log('📝 [DEBUG] System prompt preview:', systemPrompt.substring(0, 100))
+    console.log('📝 [DEBUG] System prompt preview:', systemPrompt)
 
     // Créer le stream avec Claude - Utilisation du modèle correct  
     const stream = await client.messages.stream({

@@ -23,10 +23,11 @@ import {
 
 /**
  * Initialize a new conversation state
+ * // TODO: change later to intent_understanding
  */
 export function initializeConversationState(): ConversationState {
   return {
-    currentStage: 'intent_understanding',
+    currentStage: 'project_understanding', 
     completedStages: []
   }
 }
