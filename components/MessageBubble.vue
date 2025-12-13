@@ -186,6 +186,7 @@ const parsedContent = computed(() => {
       const options: string[] = []
       let totalLength = 0
       let expectedNum = 1
+      let linesProcessed = 0
       
       // Collect all consecutive numbered lines
       for (let j = i; j < lines.length; j++) {
@@ -197,9 +198,11 @@ const parsedContent = computed(() => {
           options.push(currentTrimmed.replace(/^\d+\.\s+/, '').trim())
           totalLength += currentLine.length + 1 // +1 for newline
           expectedNum++
+          linesProcessed++
         } else if (currentTrimmed === '') {
           // Empty line - could be spacing between items
           totalLength += currentLine.length + 1
+          linesProcessed++
           // Check if next line continues the list
           if (j + 1 < lines.length) {
             const nextTrimmed = lines[j + 1].trim()
@@ -230,8 +233,11 @@ const parsedContent = computed(() => {
           data: options
         })
         
-        // Skip the lines we just processed
-        i += options.length - 1
+        // Advance character index by the total length of all processed lines
+        currentCharIndex += totalLength
+        // Skip the lines we just processed in the outer loop
+        i += linesProcessed - 1
+        continue // Skip the normal currentCharIndex increment below
       }
     }
     

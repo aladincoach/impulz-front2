@@ -9,6 +9,7 @@ import {
 } from '../utils/memory'
 import { buildSystemPrompt, shouldTriggerCapability, processResponse } from '../utils/reasoningEngine'
 import { getCapabilityPrompt } from '../utils/capabilities'
+import { getSupabaseClient } from '../utils/supabase'
 
 export default defineEventHandler(async (event) => {
   const { message, conversationHistory, sessionId: providedSessionId } = await readBody(event)
@@ -42,6 +43,58 @@ export default defineEventHandler(async (event) => {
     console.log('🔄 [SESSION] ID:', sessionId)
     console.log('🔄 [SESSION] Memory:', JSON.stringify(session.memory.project, null, 2))
     console.log('🔄 [SESSION] Questions pending:', session.questions.filter(q => q.status === 'pending').length)
+
+    // Get or create conversation in Supabase
+    const supabase = getSupabaseClient(event)
+    let conversationId: string | null = null
+    
+    try {
+      // Try to find existing conversation by session_id
+      const { data: existingConversation, error: findError } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('session_id', sessionId)
+        .single() as { data: { id: string } | null; error: any }
+
+      if (existingConversation) {
+        conversationId = existingConversation.id
+        console.log('💾 [SUPABASE] Found existing conversation:', conversationId)
+      } else {
+        // Create new conversation
+        const { data: newConversation, error: createError } = await supabase
+          .from('conversations')
+          .insert({ session_id: sessionId } as any)
+          .select('id')
+          .single() as { data: { id: string } | null; error: any }
+
+        if (createError) {
+          console.error('❌ [SUPABASE] Error creating conversation:', createError)
+        } else if (newConversation) {
+          conversationId = newConversation.id
+          console.log('💾 [SUPABASE] Created new conversation:', conversationId)
+        }
+      }
+
+      // Save user message to Supabase
+      if (conversationId) {
+        const { error: messageError } = await supabase
+          .from('messages')
+          .insert({
+            conversation_id: conversationId,
+            content: message,
+            role: 'user'
+          } as any)
+
+        if (messageError) {
+          console.error('❌ [SUPABASE] Error saving user message:', messageError)
+        } else {
+          console.log('💾 [SUPABASE] Saved user message')
+        }
+      }
+    } catch (supabaseError) {
+      // Don't fail the request if Supabase fails, just log it
+      console.error('❌ [SUPABASE] Error in Supabase operations:', supabaseError)
+    }
 
     // Check if a capability should be triggered
     const capabilityCheck = shouldTriggerCapability(sessionId, message)
@@ -131,6 +184,27 @@ export default defineEventHandler(async (event) => {
           }
           if (backlogUpdated) {
             console.log('📝 [SESSION] Question backlog updated')
+          }
+
+          // Save assistant response to Supabase
+          if (conversationId && fullResponse) {
+            try {
+              const { error: assistantMessageError } = await supabase
+                .from('messages')
+                .insert({
+                  conversation_id: conversationId,
+                  content: fullResponse,
+                  role: 'assistant'
+                } as any)
+
+              if (assistantMessageError) {
+                console.error('❌ [SUPABASE] Error saving assistant message:', assistantMessageError)
+              } else {
+                console.log('💾 [SUPABASE] Saved assistant message')
+              }
+            } catch (supabaseError) {
+              console.error('❌ [SUPABASE] Error saving assistant message:', supabaseError)
+            }
           }
           
           // Send done signal
