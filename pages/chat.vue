@@ -1,12 +1,38 @@
 <template>
-  <div class="h-screen flex flex-col bg-white">
-    <!-- Header -->
-    <header class="border-b border-gray-200 bg-white sticky top-0 z-10">
-      <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-        <h1 class="text-xl font-semibold text-gray-900">{{ $t('chat.title') }}</h1>
-        <LanguageSwitcher />
-      </div>
-    </header>
+  <div class="h-screen flex bg-white">
+    <!-- Sidebar -->
+    <ProjectsSidebar
+      v-model:is-open="sidebarOpen"
+      @project-changed="handleProjectChanged"
+      @topic-changed="handleTopicChanged"
+    />
+
+    <!-- Main content -->
+    <div class="flex-1 flex flex-col overflow-hidden ml-0 md:ml-64">
+      <!-- Header -->
+      <header class="border-b border-gray-200 bg-white sticky top-0 z-10">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <!-- Mobile sidebar toggle button in header -->
+            <button
+              v-if="isMobile"
+              @click="sidebarOpen = !sidebarOpen"
+              class="md:hidden p-2 -ml-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+              :aria-label="$t('projects.title', 'Projects')"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path v-if="!sidebarOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h1 class="text-xl font-semibold text-gray-900">{{ $t('chat.title') }}</h1>
+            <span v-if="currentProject && currentTopic" class="hidden sm:inline text-sm text-gray-500">
+              / {{ currentProject.name }} / {{ currentTopic.name }}
+            </span>
+          </div>
+          <LanguageSwitcher />
+        </div>
+      </header>
 
     <!-- Fallback Warning Banner -->
     <div v-if="showFallbackWarning" class="bg-yellow-50 border-b border-yellow-200">
@@ -48,18 +74,48 @@
       </div>
     </div>
 
-    <!-- Fixed Input at Bottom -->
-    <div class="sticky bottom-0 bg-white  border-gray-200">
-      <div class="max-w-7xl mx-auto px-4 py-4">
-        <ChatInput ref="chatInputRef" @send="handleSendMessage" :disabled="isWaitingForResponse" />
+      <!-- Fixed Input at Bottom -->
+      <div class="sticky bottom-0 bg-white border-t border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+          <ChatInput ref="chatInputRef" @send="handleSendMessage" :disabled="isWaitingForResponse || !currentTopicId" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Topic change confirmation dialog -->
+    <div
+      v-if="showTopicChangeDialog"
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+      @click.self="cancelTopicChange"
+    >
+      <div class="bg-white rounded-lg p-6 max-w-md w-full" @click.stop>
+        <h3 class="text-lg font-semibold mb-4">{{ $t('chat.topicChangeTitle', 'Switch to a new topic?') }}</h3>
+        <p class="text-gray-600 mb-4">
+          {{ $t('chat.topicChangeMessage', 'Your current conversation is about a different topic. Would you like to start a new topic thread?') }}
+        </p>
+        <div class="flex justify-end gap-2">
+          <button
+            @click="cancelTopicChange"
+            class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+          >
+            {{ $t('common.cancel', 'Cancel') }}
+          </button>
+          <button
+            @click="confirmTopicChange"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            {{ $t('chat.startNewTopic', 'Start New Topic') }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, computed, onMounted, onUnmounted } from 'vue'
+import { ref, nextTick, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useProjects } from '~/composables/useProjects'
 
 interface Message {
   id: string
@@ -74,6 +130,56 @@ const chatInputRef = ref()
 const isWaitingForResponse = ref(false)
 const availableOptions = ref<string[]>([])
 const showFallbackWarning = ref(false)
+const sidebarOpen = ref(false)
+
+// Project and topic management
+const {
+  currentProject,
+  currentTopic,
+  currentProjectId,
+  currentTopicId,
+  loadProjects
+} = useProjects()
+
+// Topic change detection
+const pendingTopicId = ref<string | null>(null)
+const showTopicChangeDialog = ref(false)
+const lastMessageTopic = ref<string | null>(null)
+
+// Detect if we're on mobile
+const isMobile = computed(() => {
+  if (typeof window === 'undefined') return false
+  return window.innerWidth < 768
+})
+
+// Watch sidebar state for mobile
+watch(sidebarOpen, (newVal) => {
+  // Prevent body scroll when sidebar is open on mobile
+  if (typeof document !== 'undefined' && isMobile.value) {
+    if (newVal) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+  }
+})
+
+// Watch for topic changes
+watch(currentTopicId, (newTopicId, oldTopicId) => {
+  if (oldTopicId && newTopicId && oldTopicId !== newTopicId && messages.value.length > 0) {
+    // Topic changed and we have messages - load conversation for new topic
+    loadConversationForTopic(newTopicId)
+  }
+})
+
+// Load projects on mount
+onMounted(async () => {
+  await loadProjects()
+  // Load conversation for current topic if it exists
+  if (currentTopicId.value) {
+    await loadConversationForTopic(currentTopicId.value)
+  }
+})
 
 // Extract options from the last bot message
 const updateAvailableOptions = () => {
@@ -136,7 +242,93 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyPress)
 })
 
+// Load conversation history for a topic
+const loadConversationForTopic = async (topicId: string) => {
+  try {
+    // Clear current messages
+    messages.value = []
+    
+    // Load conversation history from API
+    const response = await fetch(`/api/conversations?topic_id=${topicId}`)
+    if (response.ok) {
+      const data = await response.json()
+      if (data.messages && Array.isArray(data.messages)) {
+        messages.value = data.messages.map((msg: any) => ({
+          id: msg.id || `msg-${Date.now()}-${Math.random()}`,
+          text: msg.content || msg.text || '',
+          isUser: msg.role === 'user'
+        }))
+        nextTick(() => {
+          scrollToBottom()
+        })
+      }
+    }
+  } catch (error) {
+    console.error('Error loading conversation:', error)
+  }
+}
+
+// Detect topic change from message content
+const detectTopicChange = (message: string): boolean => {
+  // Simple heuristic: if message is very different from last messages, might be topic change
+  // This is a basic implementation - you might want to use AI to detect this
+  if (messages.value.length === 0) return false
+  
+  // For now, we'll rely on explicit topic switching via sidebar
+  // But we can add more sophisticated detection later
+  return false
+}
+
+// Handle project change
+const handleProjectChanged = async (projectId: string) => {
+  // Project changed - messages will be cleared when topic loads
+  console.log('Project changed to:', projectId)
+}
+
+// Handle topic change
+const handleTopicChanged = async (topicId: string) => {
+  if (messages.value.length > 0 && lastMessageTopic.value && lastMessageTopic.value !== topicId) {
+    // We have messages and topic changed - ask for confirmation
+    pendingTopicId.value = topicId
+    showTopicChangeDialog.value = true
+  } else {
+    // No messages or first topic - just switch
+    await loadConversationForTopic(topicId)
+    lastMessageTopic.value = topicId
+  }
+}
+
+// Confirm topic change
+const confirmTopicChange = async () => {
+  if (pendingTopicId.value) {
+    messages.value = []
+    await loadConversationForTopic(pendingTopicId.value)
+    lastMessageTopic.value = pendingTopicId.value
+    pendingTopicId.value = null
+    showTopicChangeDialog.value = false
+  }
+}
+
+// Cancel topic change
+const cancelTopicChange = () => {
+  pendingTopicId.value = null
+  showTopicChangeDialog.value = false
+  // Revert to previous topic if needed
+  // This would require storing previous topic ID
+}
+
 const handleSendMessage = async (text: string) => {
+  // Check if we have a current topic
+  if (!currentTopicId.value) {
+    alert('Please select or create a topic first')
+    return
+  }
+
+  // Detect if this might be a topic change
+  if (detectTopicChange(text) && messages.value.length > 0) {
+    // Could prompt user here, but for now we'll just send
+  }
+
   // Clear available options when user sends a message
   availableOptions.value = []
   
@@ -147,6 +339,7 @@ const handleSendMessage = async (text: string) => {
     isUser: true
   }
   messages.value.push(userMessage)
+  lastMessageTopic.value = currentTopicId.value
 
   // Scroll to bottom
   nextTick(() => {
@@ -175,6 +368,8 @@ const handleSendMessage = async (text: string) => {
 
     console.log('🔵 [Frontend] Envoi du message:', text)
     console.log('🔵 [Frontend] Historique:', conversationHistory.length - 1, 'messages')
+    console.log('🔵 [Frontend] Project ID:', currentProjectId.value)
+    console.log('🔵 [Frontend] Topic ID:', currentTopicId.value)
 
     // Appeler l'API avec streaming
     const response = await fetch('/api/chat', {
@@ -185,6 +380,8 @@ const handleSendMessage = async (text: string) => {
       body: JSON.stringify({
         message: text,
         conversationHistory: conversationHistory.slice(0, -1), // Exclure le message actuel
+        projectId: currentProjectId.value,
+        topicId: currentTopicId.value,
         locale: locale.value
       })
     })

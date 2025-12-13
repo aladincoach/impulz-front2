@@ -12,15 +12,24 @@ import { getCapabilityPrompt } from '../utils/capabilities'
 import { getSupabaseClient } from '../utils/supabase'
 
 export default defineEventHandler(async (event) => {
-  const { message, conversationHistory, sessionId: providedSessionId, locale } = await readBody(event)
+  const { message, conversationHistory, sessionId: providedSessionId, projectId, topicId, locale } = await readBody(event)
 
   console.log('🔵 [API] Message received:', message)
   console.log('🔵 [API] History:', conversationHistory?.length || 0, 'messages')
+  console.log('🔵 [API] Project ID:', projectId)
+  console.log('🔵 [API] Topic ID:', topicId)
 
   if (!message) {
     throw createError({
       statusCode: 400,
       statusMessage: 'Message is required'
+    })
+  }
+
+  if (!topicId) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Topic ID is required. Please select or create a topic.'
     })
   }
 
@@ -36,8 +45,10 @@ export default defineEventHandler(async (event) => {
   })
 
   try {
-    // Get or create session
-    const sessionId = providedSessionId || generateSessionId(conversationHistory)
+    // Generate session ID that includes topic ID for topic-specific memory
+    // This ensures each topic has its own session memory
+    const baseSessionId = providedSessionId || generateSessionId(conversationHistory)
+    const sessionId = topicId ? `${baseSessionId}_topic_${topicId}` : baseSessionId
     const session = getSession(sessionId)
     
     console.log('🔄 [SESSION] ID:', sessionId)
@@ -49,10 +60,12 @@ export default defineEventHandler(async (event) => {
     let conversationId: string | null = null
     
     try {
-      // Try to find existing conversation by session_id
+      // Try to find existing conversation by topic_id and session_id
+      // This ensures each topic has its own conversation thread
       const { data: existingConversation, error: findError } = await supabase
         .from('conversations')
         .select('id')
+        .eq('topic_id', topicId)
         .eq('session_id', sessionId)
         .single() as { data: { id: string } | null; error: any }
 
@@ -60,10 +73,14 @@ export default defineEventHandler(async (event) => {
         conversationId = existingConversation.id
         console.log('💾 [SUPABASE] Found existing conversation:', conversationId)
       } else {
-        // Create new conversation
+        // Create new conversation for this topic
         const { data: newConversation, error: createError } = await supabase
           .from('conversations')
-          .insert({ session_id: sessionId } as any)
+          .insert({ 
+            session_id: sessionId,
+            project_id: projectId || null,
+            topic_id: topicId
+          } as any)
           .select('id')
           .single() as { data: { id: string } | null; error: any }
 

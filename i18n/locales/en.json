@@ -5,12 +5,35 @@
     "welcomeMessage": "How can I help you today?",
     "inputPlaceholder": "Write your message...",
     "send": "Send",
-    "fallbackWarning": "Due to connection issues to the prompt database, the system is based on a previous version"
+    "fallbackWarning": "Due to connection issues to the prompt database, the system is based on a previous version",
+    "topicChangeTitle": "Switch to a new topic?",
+    "topicChangeMessage": "Your current conversation is about a different topic. Would you like to start a new topic thread?",
+    "startNewTopic": "Start New Topic"
+  },
+  "projects": {
+    "title": "Projects",
+    "loading": "Loading...",
+    "add": "Add project",
+    "edit": "Edit",
+    "delete": "Delete",
+    "name": "Project name",
+    "defaultName": "New Project",
+    "deleteConfirm": "Delete project \"{name}\"? This will delete all topics and conversations in this project."
+  },
+  "topics": {
+    "add": "Add topic",
+    "edit": "Edit",
+    "delete": "Delete",
+    "name": "Topic name",
+    "defaultName": "New Topic",
+    "deleteConfirm": "Delete topic \"{name}\"? This will delete all conversations in this topic."
   },
   "common": {
     "loading": "Loading...",
     "error": "An error occurred",
-    "retry": "Retry"
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "save": "Save"
   },
   "messageBubble": {
     "thinking": "Thinking",

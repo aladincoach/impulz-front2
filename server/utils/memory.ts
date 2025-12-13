@@ -3,6 +3,8 @@
  * Manages session state, project memory, and question backlog
  */
 
+import type { ProjectPhase } from './workflowTypes'
+
 // ============================================
 // MEMORY INTERFACES
 // ============================================
@@ -39,8 +41,6 @@ export interface SessionMemory {
   progress: ProgressMemory
   user: UserMemory
 }
-
-export type ProjectPhase = 'idée' | 'MVP' | 'traction' | 'scale'
 
 // ============================================
 // QUESTION BACKLOG (Todo-like system)
