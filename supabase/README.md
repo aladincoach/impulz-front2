@@ -12,10 +12,23 @@ This directory contains the database schema and setup instructions for storing c
 
 ### 2. Run the Database Schema
 
+**Option A: Fresh Start (Recommended for new projects)**
+
 1. Open your Supabase project dashboard
 2. Go to SQL Editor
 3. Copy and paste the contents of `schema.sql`
 4. Run the SQL script
+
+**Option B: Migration (If you have existing tables)**
+
+If you already have tables but are missing the `session_id` column, use the migration script instead:
+
+1. Open your Supabase project dashboard
+2. Go to SQL Editor
+3. Copy and paste the contents of `migration_add_session_id.sql`
+4. Run the SQL script
+
+**Note:** The main `schema.sql` file will drop existing tables. Use the migration script if you want to keep existing data.
 
 This will create:
 - `conversations` table - stores conversation metadata and session information

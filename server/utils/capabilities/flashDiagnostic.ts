@@ -153,26 +153,42 @@ function buildDiagnosticContent(
   const projectName = memory.project.name || 'Your project'
   const description = memory.project.description || 'your project idea'
   
-  return `## 🎯 Flash Diagnostic: ${projectName}
+  return `🎯 DIAGNOSTIC FLASH DE TON PROJET: ${projectName}
 
-### 📋 Project Summary
-💡 ${description}
-${memory.project.features?.length ? `\n🔧 Key features: ${memory.project.features.join(', ')}` : ''}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-### 🚀 Current Phase: ${getPhaseEmoji(phase)} ${phase.toUpperCase()}
-${getPhaseDescription(phase)}
+📋 RÉSUMÉ DU PROJET
 
-### ✅ Strengths Identified
-${strengths.map(s => `✨ ${s}`).join('\n')}
+   ${description}
+${memory.project.features?.length ? `\n   🔧 Fonctionnalités clés: ${memory.project.features.join(', ')}` : ''}
 
-### ⚠️ Gaps & Risks
-${gaps.map(g => `🔴 ${g}`).join('\n')}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-### 🎯 Top 3 Recommendations
+🚀 PHASE ACTUELLE: ${getPhaseEmoji(phase)} ${phase.toUpperCase()}
+
+   ${getPhaseDescription(phase)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ TES FORCES IDENTIFIÉES
+
+${strengths.map(s => `   • ${s}`).join('\n')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️  POINTS D'ATTENTION & RISQUES
+
+${gaps.map(g => `   • ${g}`).join('\n')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 TOP 3 RECOMMANDATIONS
+
 ${getPhaseRecommendations(phase, gaps)}
 
----
-💬 *This is a flash diagnostic based on our conversation. Want to go deeper?*`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💬 Ceci est un diagnostic flash basé sur notre conversation. Tu veux aller plus loin ?`
 }
 
 function getPhaseEmoji(phase: string): string {
@@ -187,10 +203,10 @@ function getPhaseEmoji(phase: string): string {
 
 function getPhaseDescription(phase: string): string {
   const descriptions: Record<string, string> = {
-    'idée': '💭 You are in the early ideation phase. Focus on validating your problem and understanding your target users.',
-    'MVP': '🔨 You are building your minimum viable product. Focus on shipping fast and getting real user feedback.',
-    'traction': '📈 You have initial traction. Focus on understanding what works and doubling down on it.',
-    'scale': '🚀 You are ready to scale. Focus on systems, team, and sustainable growth.'
+    'idée': 'Tu es dans la phase de structuration de ton projet, avec les bases techniques mais il reste du travail de planification avant le lancement.',
+    'MVP': 'Tu es en train de construire ton produit minimum viable. Concentre-toi sur livrer rapidement et obtenir de vrais retours utilisateurs.',
+    'traction': 'Tu as une traction initiale. Concentre-toi sur comprendre ce qui fonctionne et double dessus.',
+    'scale': 'Tu es prêt à scaler. Concentre-toi sur les systèmes, l\'équipe et la croissance durable.'
   }
   return descriptions[phase] || descriptions['idée']
 }
@@ -201,31 +217,31 @@ function getPhaseRecommendations(phase: string, gaps: string[]): string {
   // Phase-specific recommendations
   switch (phase) {
     case 'idée':
-      recommendations.push('1. 🎤 **Validate the problem**: Talk to 10 potential customers this week. Focus on understanding their pain, not pitching your solution.')
+      recommendations.push('   1. 🎤 Valider le problème: Parle à 10 clients potentiels cette semaine. Concentre-toi sur comprendre leur douleur, pas sur présenter ta solution.')
       if (gaps.some(g => g.includes('Technical'))) {
-        recommendations.push('2. 🤝 **Find a technical co-founder or partner**: Your idea needs execution. Explore communities like CoFoundersLab or Antler.')
+        recommendations.push('   2. 🤝 Trouver un co-fondateur technique ou partenaire: Ton idée a besoin d\'exécution. Explore des communautés comme CoFoundersLab ou Antler.')
       } else {
-        recommendations.push('2. 🎯 **Define your micro-market**: Choose ONE specific customer segment to test with first.')
+        recommendations.push('   2. 🎯 Définir ton micro-marché: Choisis UN segment de clientèle spécifique pour tester en premier.')
       }
-      recommendations.push('3. 💰 **Pre-sell before building**: Try to get 3 paying early adopters before writing code.')
+      recommendations.push('   3. 💰 Pré-vendre avant de construire: Essaie d\'obtenir 3 early adopters payants avant d\'écrire du code.')
       break
       
     case 'MVP':
-      recommendations.push('1. 🚢 **Ship in 2 weeks**: Whatever you have, get it in front of users. Perfect is the enemy of good.')
-      recommendations.push('2. 🔄 **Set up feedback loops**: Create a simple way for users to share feedback (Slack channel, Typeform, direct calls).')
-      recommendations.push('3. ⭐ **Define your North Star metric**: What\'s the ONE number that tells you if you\'re succeeding?')
+      recommendations.push('   1. 🚢 Livrer dans 2 semaines: Ce que tu as, mets-le devant les utilisateurs. Le parfait est l\'ennemi du bien.')
+      recommendations.push('   2. 🔄 Mettre en place des boucles de feedback: Crée un moyen simple pour les utilisateurs de partager leurs retours (canal Slack, Typeform, appels directs).')
+      recommendations.push('   3. ⭐ Définir ta métrique North Star: Quel est le UN chiffre qui te dit si tu réussis ?')
       break
       
     case 'traction':
-      recommendations.push('1. 📊 **Double down on what works**: Identify your best acquisition channel and focus 80% of effort there.')
-      recommendations.push('2. 🔒 **Improve retention**: Analyze why users leave and fix the top 3 reasons.')
-      recommendations.push('3. 📝 **Document your processes**: Start building systems for what you do repeatedly.')
+      recommendations.push('   1. 📊 Doubler sur ce qui fonctionne: Identifie ton meilleur canal d\'acquisition et concentre 80% de tes efforts là-dessus.')
+      recommendations.push('   2. 🔒 Améliorer la rétention: Analyse pourquoi les utilisateurs partent et corrige les 3 principales raisons.')
+      recommendations.push('   3. 📝 Documenter tes processus: Commence à construire des systèmes pour ce que tu fais de manière répétée.')
       break
       
     case 'scale':
-      recommendations.push('1. 👥 **Build the team**: Your next hire should free you from operational tasks.')
-      recommendations.push('2. 🔄 **Systematize growth**: Turn your best practices into repeatable playbooks.')
-      recommendations.push('3. 💎 **Consider funding strategically**: Only raise if it accelerates a proven model.')
+      recommendations.push('   1. 👥 Construire l\'équipe: Ton prochain recrutement devrait te libérer des tâches opérationnelles.')
+      recommendations.push('   2. 🔄 Systématiser la croissance: Transforme tes meilleures pratiques en playbooks répétables.')
+      recommendations.push('   3. 💎 Considérer le financement stratégiquement: Ne lève des fonds que si cela accélère un modèle éprouvé.')
       break
   }
   

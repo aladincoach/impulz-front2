@@ -1,5 +1,10 @@
+-- Drop existing tables if they exist (to start fresh)
+-- Comment out these lines if you want to keep existing data
+DROP TABLE IF EXISTS messages CASCADE;
+DROP TABLE IF EXISTS conversations CASCADE;
+
 -- Create conversations table
-CREATE TABLE IF NOT EXISTS conversations (
+CREATE TABLE conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -9,7 +14,7 @@ CREATE TABLE IF NOT EXISTS conversations (
 );
 
 -- Create messages table
-CREATE TABLE IF NOT EXISTS messages (
+CREATE TABLE messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
