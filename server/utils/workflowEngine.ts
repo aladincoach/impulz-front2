@@ -23,7 +23,6 @@ import {
 
 /**
  * Initialize a new conversation state
- * // TODO: change later to intent_understanding
  */
 export function initializeConversationState(): ConversationState {
   return {
