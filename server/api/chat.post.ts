@@ -12,7 +12,7 @@ import { getCapabilityPrompt } from '../utils/capabilities'
 import { getSupabaseClient } from '../utils/supabase'
 
 export default defineEventHandler(async (event) => {
-  const { message, conversationHistory, sessionId: providedSessionId } = await readBody(event)
+  const { message, conversationHistory, sessionId: providedSessionId, locale } = await readBody(event)
 
   console.log('🔵 [API] Message received:', message)
   console.log('🔵 [API] History:', conversationHistory?.length || 0, 'messages')
@@ -101,7 +101,7 @@ export default defineEventHandler(async (event) => {
     console.log('🎯 [CAPABILITY]', capabilityCheck.reason)
 
     // Build system prompt
-    let systemPrompt = await buildSystemPrompt(sessionId, useCache)
+    let systemPrompt = await buildSystemPrompt(sessionId, useCache, locale || 'en')
     
     // Add capability-specific instructions if triggered
     if (capabilityCheck.capability) {

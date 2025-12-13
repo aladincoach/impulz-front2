@@ -25,7 +25,8 @@ import { getBasePromptFromNotion } from './notion'
  */
 export async function buildSystemPrompt(
   sessionId: string,
-  useCache: boolean = true
+  useCache: boolean = true,
+  locale: string = 'en'
 ): Promise<string> {
   const session = getSession(sessionId)
   const basePrompt = await getBasePromptFromNotion(useCache)
@@ -35,10 +36,13 @@ export async function buildSystemPrompt(
   const backlogContext = buildBacklogContext(session.questions)
   const kbContext = buildKnowledgeBaseContext(knowledgeBase)
   const instructions = buildInstructions(session.memory)
+  const languageInstructions = buildLanguageInstructions(locale)
   
   return `${basePrompt || DEFAULT_BASE_PROMPT}
 
 ${REASONING_INSTRUCTIONS}
+
+${languageInstructions}
 
 ${memoryContext}
 
@@ -142,6 +146,32 @@ If user's phase doesn't match entry's "maturite", warn them and suggest more rel
 `
 }
 
+function buildLanguageInstructions(locale: string): string {
+  const languageMap: Record<string, string> = {
+    'fr': 'French',
+    'en': 'English',
+    'es': 'Spanish',
+    'de': 'German',
+    'it': 'Italian',
+    'pt': 'Portuguese'
+  }
+  
+  const languageName = languageMap[locale] || 'English'
+  
+  return `## LANGUAGE INSTRUCTIONS
+
+The user's interface language is set to: ${languageName} (locale: ${locale})
+
+CRITICAL: All content inside <thinking> tags MUST be written in ${languageName}. This includes:
+- Your reasoning and analysis
+- Questions you're considering
+- Information gaps you identify
+- Any explanations or notes
+
+Write the thinking content naturally in ${languageName}, as if you were thinking out loud in that language.
+`
+}
+
 function buildInstructions(memory: SessionMemory): string {
   const diagnosticReady = isMemorySufficientFor(memory, 'flash_diagnostic')
   const actionPlanReady = isMemorySufficientFor(memory, 'action_plan')
@@ -184,6 +214,8 @@ You MUST structure your response with these tags:
 - If asking, what's the most important gap to fill?
 - If knowledge base matches, which entries? Is phase compatible?
 </thinking>
+
+IMPORTANT: Write the content inside <thinking> tags in the user's language (as specified in the language instructions below).
 
 ### 2. Memory Update (hidden, parsed by system)
 <memory_update>

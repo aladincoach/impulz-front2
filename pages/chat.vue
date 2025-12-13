@@ -184,7 +184,8 @@ const handleSendMessage = async (text: string) => {
       },
       body: JSON.stringify({
         message: text,
-        conversationHistory: conversationHistory.slice(0, -1) // Exclure le message actuel
+        conversationHistory: conversationHistory.slice(0, -1), // Exclure le message actuel
+        locale: locale.value
       })
     })
 
@@ -319,7 +320,7 @@ const handleOptionClick = (option: string) => {
 }
 
 // Internationalization
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 // Set page title (Nuxt composable)
 const title = computed(() => t('chat.pageTitle'))
