@@ -189,8 +189,14 @@ export function deleteSession(sessionId: string): void {
 
 /**
  * Update memory with new data (deep merge)
+ * Optionally saves project info to Supabase project.description field
  */
-export function updateMemory(sessionId: string, memoryUpdates: Partial<SessionMemory>): SessionMemory {
+export async function updateMemory(
+  sessionId: string, 
+  memoryUpdates: Partial<SessionMemory>,
+  projectId?: string | null,
+  event?: any
+): Promise<SessionMemory> {
   const session = getSession(sessionId)
   
   const updatedMemory: SessionMemory = {
@@ -221,6 +227,32 @@ export function updateMemory(sessionId: string, memoryUpdates: Partial<SessionMe
   }
   
   updateSession(sessionId, { memory: updatedMemory })
+  
+  // If project info was updated and we have a projectId, save to Supabase
+  if ((memoryUpdates.project || memoryUpdates.progress || memoryUpdates.user) && projectId && event) {
+    try {
+      const { getSupabaseClient } = await import('./supabase')
+      const supabase = getSupabaseClient(event)
+      
+      // Save complete memory state to project.description as JSONB
+      const updateData: Record<string, any> = {
+        description: updatedMemory
+      }
+      const { error } = await supabase
+        .from('projects')
+        .update(updateData as any)
+        .eq('id', projectId)
+      
+      if (error) {
+        console.warn('⚠️ [MEMORY] Failed to save project info to Supabase:', error)
+      } else {
+        console.log('💾 [MEMORY] Saved project info to Supabase project:', projectId)
+      }
+    } catch (error) {
+      console.warn('⚠️ [MEMORY] Error saving project info to Supabase:', error)
+    }
+  }
+  
   return updatedMemory
 }
 
@@ -233,11 +265,11 @@ export function parseMemoryUpdates(response: string): Partial<SessionMemory> | n
   if (!match) return null
   
   try {
-    const updates = JSON.parse(match[1])
+    const updates = JSON.parse(match[1]) as Record<string, any>
     const memory: Partial<SessionMemory> = {}
     
     for (const [path, value] of Object.entries(updates)) {
-      setNestedValue(memory, path, value)
+      setNestedValue(memory as Record<string, any>, path, value)
     }
     
     return memory
@@ -250,9 +282,9 @@ export function parseMemoryUpdates(response: string): Partial<SessionMemory> | n
 /**
  * Set a nested value in an object using dot notation path
  */
-function setNestedValue(obj: any, path: string, value: any): void {
+function setNestedValue(obj: Record<string, any>, path: string, value: any): void {
   const keys = path.split('.')
-  let current = obj
+  let current: any = obj
   
   for (let i = 0; i < keys.length - 1; i++) {
     const key = keys[i]

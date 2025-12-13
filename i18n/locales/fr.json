@@ -45,6 +45,44 @@
     "editQuestion": "Modifier la question",
     "deleteQuestion": "Supprimer la question",
     "completedQuestions": "Terminées"
+  },
+  "documents": {
+    "title": "Documents",
+    "loading": "Chargement...",
+    "empty": "Aucun document pour le moment",
+    "type": "Type",
+    "expires": "Expire le",
+    "expired": "Expiré",
+    "validated": "Validé",
+    "validate": "Valider le défi",
+    "validating": "Validation...",
+    "validationError": "Échec de la validation du défi. Veuillez réessayer.",
+    "projectInfo": "Informations du projet",
+    "known": "Connu",
+    "unknown": "Inconnu",
+    "noProjectInfo": "Aucune information sur le projet disponible pour le moment",
+    "types": {
+      "actionPlan": "Plan d'action",
+      "diagnostic": "Diagnostic",
+      "other": "Autre"
+    },
+    "fields": {
+      "projectName": "Nom du projet",
+      "description": "Description",
+      "phase": "Phase",
+      "targetSegment": "Segment cible",
+      "problem": "Problème",
+      "solution": "Solution",
+      "marketCategory": "Catégorie de marché",
+      "activities": "Activités",
+      "milestones": "Jalons",
+      "skills": "Compétences",
+      "assets": "Atouts",
+      "timeConstraint": "Temps disponible",
+      "budget": "Budget",
+      "geography": "Géographie",
+      "lacking": "Manque"
+    }
   }
 }
 

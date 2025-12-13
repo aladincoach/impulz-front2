@@ -71,19 +71,3 @@ export function clearConversationState(sessionId: string): void {
   conversationStates.delete(sessionId)
 }
 
-/**
- * Generate a session ID from conversation history
- * In production, use proper session management
- */
-export function generateSessionId(conversationHistory?: any[]): string {
-  // Simple hash based on conversation length
-  // In production, use proper session tokens
-  if (!conversationHistory || conversationHistory.length === 0) {
-    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-  }
-  
-  // Use a consistent ID based on conversation start
-  const firstMessage = conversationHistory[0]?.text || ''
-  return `session_${firstMessage.substring(0, 20).replace(/\s/g, '_')}`
-}
-

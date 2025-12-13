@@ -1,5 +1,5 @@
 <template>
-  <div class="h-screen flex bg-white">
+  <div class="h-screen flex bg-white relative">
     <!-- Sidebar -->
     <ProjectsSidebar
       v-model:is-open="sidebarOpen"
@@ -109,6 +109,11 @@
         </div>
       </div>
     </div>
+
+    <!-- Documents Panel -->
+    <DocumentsPanel
+      v-model:is-open="documentsPanelOpen"
+    />
   </div>
 </template>
 
@@ -131,6 +136,7 @@ const isWaitingForResponse = ref(false)
 const availableOptions = ref<string[]>([])
 const showFallbackWarning = ref(false)
 const sidebarOpen = ref(false)
+const documentsPanelOpen = ref(false)
 
 // Project and topic management
 const {
@@ -437,6 +443,11 @@ const handleSendMessage = async (text: string) => {
               nextTick(() => {
                 updateAvailableOptions()
                 chatInputRef.value?.focus()
+                // Trigger memory refresh after response completes
+                // Small delay to ensure memory is updated on server
+                setTimeout(() => {
+                  window.dispatchEvent(new CustomEvent('memory-refresh'))
+                }, 1000)
               })
               break
             }

@@ -15,6 +15,7 @@ import {
 } from './memory'
 import { getKnowledgeBase, formatKnowledgeEntry, type KnowledgeEntry } from './notion'
 import { getBasePromptFromNotion } from './notion'
+import { getSupabaseClient } from './supabase'
 
 // ============================================
 // SYSTEM PROMPT BUILDING
@@ -267,19 +268,31 @@ You challenge assumptions when needed, but always constructively.
 /**
  * Process Claude's response and update session state
  */
-export function processResponse(
+export async function processResponse(
   sessionId: string,
-  response: string
-): { cleanResponse: string; memoryUpdated: boolean; backlogUpdated: boolean } {
+  response: string,
+  projectId?: string | null,
+  topicId?: string | null,
+  event?: any
+): Promise<{ cleanResponse: string; memoryUpdated: boolean; backlogUpdated: boolean }> {
   let memoryUpdated = false
   let backlogUpdated = false
   
   // Extract and apply memory updates
   const memoryUpdates = parseMemoryUpdates(response)
   if (memoryUpdates) {
-    updateMemory(sessionId, memoryUpdates)
+    await updateMemory(sessionId, memoryUpdates, projectId, event)
     memoryUpdated = true
     console.log('🧠 [REASONING] Memory updated:', JSON.stringify(memoryUpdates))
+    
+    // If project info was updated, create/update project synthesis document
+    if ((memoryUpdates.project || memoryUpdates.progress || memoryUpdates.user) && projectId && topicId && event) {
+      try {
+        await updateProjectSynthesisDocument(projectId, topicId, sessionId, event)
+      } catch (error) {
+        console.warn('⚠️ [REASONING] Failed to update project synthesis document:', error)
+      }
+    }
   }
   
   // Extract and apply question backlog updates
@@ -311,6 +324,160 @@ export async function getKnowledgeEntryById(
  * Format knowledge entry for inclusion in response
  */
 export { formatKnowledgeEntry }
+
+/**
+ * Create or update project synthesis document
+ * This document displays a formatted view of all project information
+ */
+async function updateProjectSynthesisDocument(
+  projectId: string,
+  topicId: string,
+  sessionId: string,
+  event: any
+): Promise<void> {
+  const session = getSession(sessionId)
+  const memory = session.memory
+  const supabase = getSupabaseClient(event)
+  
+  // Format the project information as markdown
+  const formattedContent = formatProjectSynthesis(memory)
+  
+  // Check if a project synthesis document already exists for this project/topic
+  const { data: existingDocs } = await supabase
+    .from('challenges')
+    .select('id')
+    .eq('project_id', projectId)
+    .eq('topic_id', topicId)
+    .eq('document_type', 'other')
+    .ilike('title', '%project synthesis%')
+    .limit(1) as { data: { id: string }[] | null; error: any }
+  
+  // Calculate expiration date (30 days from now for synthesis documents)
+  const expiresAt = new Date()
+  expiresAt.setDate(expiresAt.getDate() + 30)
+  
+  if (existingDocs && existingDocs.length > 0) {
+    // Update existing document
+    const { error } = await supabase
+      .from('challenges')
+      .update({
+        content: formattedContent,
+        expires_at: expiresAt.toISOString(),
+        updated_at: new Date().toISOString()
+      } as any)
+      .eq('id', existingDocs[0].id)
+    
+    if (error) {
+      console.error('❌ [SYNTHESIS] Failed to update project synthesis:', error)
+    } else {
+      console.log('✅ [SYNTHESIS] Updated project synthesis document')
+    }
+  } else {
+    // Create new document
+    const { error } = await supabase
+      .from('challenges')
+      .insert({
+        topic_id: topicId,
+        project_id: projectId,
+        document_type: 'other',
+        title: 'Project Synthesis',
+        content: formattedContent,
+        expires_at: expiresAt.toISOString()
+      } as any)
+    
+    if (error) {
+      console.error('❌ [SYNTHESIS] Failed to create project synthesis:', error)
+    } else {
+      console.log('✅ [SYNTHESIS] Created project synthesis document')
+    }
+  }
+}
+
+/**
+ * Format project memory as a synthesis document
+ */
+function formatProjectSynthesis(memory: SessionMemory): string {
+  const sections: string[] = []
+  
+  // Project Information
+  sections.push('## Project Information\n')
+  if (memory.project.name) {
+    sections.push(`**Project Name:** ${memory.project.name}\n`)
+  }
+  if (memory.project.description) {
+    sections.push(`**Description:** ${memory.project.description}\n`)
+  }
+  if (memory.project.phase) {
+    sections.push(`**Phase:** ${memory.project.phase}\n`)
+  }
+  if (memory.project.target_segment) {
+    sections.push(`**Target Segment:** ${memory.project.target_segment}\n`)
+  }
+  if (memory.project.problem) {
+    sections.push(`**Problem:** ${memory.project.problem}\n`)
+  }
+  if (memory.project.solution) {
+    sections.push(`**Solution:** ${memory.project.solution}\n`)
+  }
+  if (memory.project.market_category) {
+    sections.push(`**Market Category:** ${memory.project.market_category}\n`)
+  }
+  if (memory.project.features && memory.project.features.length > 0) {
+    sections.push(`**Features:**\n${memory.project.features.map(f => `- ${f}`).join('\n')}\n`)
+  }
+  
+  // Progress
+  sections.push('\n## Progress\n')
+  if (memory.progress.activities.length > 0) {
+    sections.push('**Activities:**\n')
+    sections.push(memory.progress.activities.map(a => `- ${a}`).join('\n'))
+    sections.push('\n')
+  }
+  if (memory.progress.milestones.length > 0) {
+    sections.push('**Milestones:**\n')
+    sections.push(memory.progress.milestones.map(m => `- ${m}`).join('\n'))
+    sections.push('\n')
+  }
+  if (memory.progress.activities.length === 0 && memory.progress.milestones.length === 0) {
+    sections.push('No progress recorded yet.\n')
+  }
+  
+  // User Profile
+  sections.push('\n## User Profile\n')
+  if (memory.user.skills.length > 0) {
+    sections.push(`**Skills:** ${memory.user.skills.join(', ')}\n`)
+  }
+  if (memory.user.assets.length > 0) {
+    sections.push(`**Assets:** ${memory.user.assets.join(', ')}\n`)
+  }
+  if (memory.user.skills.length === 0 && memory.user.assets.length === 0) {
+    sections.push('No user information recorded yet.\n')
+  }
+  
+  // Constraints
+  sections.push('\n## Constraints\n')
+  const constraints: string[] = []
+  if (memory.user.constraints.time) {
+    constraints.push(`**Time Available:** ${memory.user.constraints.time}`)
+  }
+  if (memory.user.constraints.budget) {
+    constraints.push(`**Budget:** ${memory.user.constraints.budget}`)
+  }
+  if (memory.user.constraints.geography) {
+    constraints.push(`**Geography:** ${memory.user.constraints.geography}`)
+  }
+  if (memory.user.constraints.lacking && memory.user.constraints.lacking.length > 0) {
+    constraints.push(`**Lacking:** ${memory.user.constraints.lacking.join(', ')}`)
+  }
+  
+  if (constraints.length > 0) {
+    sections.push(constraints.join('\n'))
+  } else {
+    sections.push('No constraints recorded yet.\n')
+  }
+  
+  return sections.join('\n')
+}
 
 // ============================================
 // CAPABILITY TRIGGERS

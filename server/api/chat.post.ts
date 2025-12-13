@@ -194,7 +194,7 @@ export default defineEventHandler(async (event) => {
           console.log('✅ [API] Streaming complete -', chunkCount, 'chunks sent')
           
           // Post-process: update session state from response
-          const { cleanResponse, memoryUpdated, backlogUpdated } = processResponse(sessionId, fullResponse)
+          const { cleanResponse, memoryUpdated, backlogUpdated } = await processResponse(sessionId, fullResponse, projectId, topicId, event)
           
           if (memoryUpdated) {
             console.log('🧠 [SESSION] Memory updated from response')
@@ -221,6 +221,68 @@ export default defineEventHandler(async (event) => {
               }
             } catch (supabaseError) {
               console.error('❌ [SUPABASE] Error saving assistant message:', supabaseError)
+            }
+          }
+
+          // Create challenge if a capability was triggered (action plan or diagnostic)
+          if (capabilityCheck.capability && fullResponse && topicId) {
+            try {
+              // Check if this is an action plan or diagnostic capability
+              const isActionPlan = capabilityCheck.capability === 'action_plan'
+              const isDiagnostic = capabilityCheck.capability === 'flash_diagnostic'
+
+              if (isActionPlan || isDiagnostic) {
+                // Extract title from response (look for markdown headers first)
+                let title = ''
+                const h2Match = fullResponse.match(/^##\s+(.+)$/m)
+                const h1Match = fullResponse.match(/^#\s+(.+)$/m)
+                
+                if (h2Match) {
+                  title = h2Match[1].trim()
+                } else if (h1Match) {
+                  title = h1Match[1].trim()
+                } else {
+                  // Fallback: use first non-empty line or default title
+                  const firstLine = fullResponse.split('\n').find(line => line.trim().length > 0 && !line.trim().startsWith('<'))
+                  title = firstLine ? firstLine.trim().substring(0, 100) : 
+                    (isActionPlan ? 'Action Plan' : 'Flash Diagnostic')
+                }
+
+                // Calculate expiration date (7 days from now)
+                const expiresAt = new Date()
+                expiresAt.setDate(expiresAt.getDate() + 7)
+
+                console.log('📄 [CHALLENGES] Creating document:', {
+                  type: isActionPlan ? 'action_plan' : 'flash_diagnostic',
+                  title: title.substring(0, 50),
+                  topicId
+                })
+
+                // Create challenge directly using Supabase
+                const { data: newChallenge, error: challengeError } = await supabase
+                  .from('challenges')
+                  .insert({
+                    topic_id: topicId,
+                    project_id: projectId || null,
+                    document_type: isActionPlan ? 'action_plan' : 'flash_diagnostic',
+                    title,
+                    content: fullResponse,
+                    expires_at: expiresAt.toISOString()
+                  } as any)
+                  .select()
+                  .single() as { data: any; error: any }
+
+                if (challengeError) {
+                  console.error('❌ [CHALLENGES] Failed to create challenge:', challengeError)
+                } else {
+                  console.log('✅ [CHALLENGES] Created challenge:', newChallenge?.id)
+                  // Trigger refresh event for DocumentsPanel
+                  // Note: This will be picked up by the auto-refresh mechanism
+                }
+              }
+            } catch (challengeError) {
+              // Don't fail the request if challenge creation fails
+              console.error('❌ [CHALLENGES] Error creating challenge:', challengeError)
             }
           }
           
