@@ -297,7 +297,7 @@ watch(currentTopicId, async (newTopicId) => {
   }
 }, { immediate: true })
 
-// Auto-refresh challenges periodically (every 5 seconds)
+// Auto-refresh challenges periodically (only when needed)
 let refreshInterval: ReturnType<typeof setInterval> | null = null
 
 watch([currentTopicId, isOpen], async ([topicId, open]) => {
@@ -313,15 +313,16 @@ watch([currentTopicId, isOpen], async ([topicId, open]) => {
       loadProjectMemory(topicId)
     ])
     
-    // Then refresh every 3 seconds to catch memory updates quickly
+    // Then refresh every 10 seconds (less frequent to avoid flickering)
+    // Only refresh if panel is still open
     refreshInterval = setInterval(async () => {
-      if (currentTopicId.value) {
+      if (currentTopicId.value && isOpen.value) {
         await Promise.all([
-          loadChallenges(currentTopicId.value),
-          loadProjectMemory(currentTopicId.value)
+          loadChallengesSilently(currentTopicId.value),
+          loadProjectMemorySilently(currentTopicId.value)
         ])
       }
-    }, 3000)
+    }, 10000)
   }
 })
 
@@ -404,47 +405,92 @@ const unknownFields = computed(() => {
     .filter((field): field is NonNullable<typeof field> => field !== null)
 })
 
-// Load project memory for current topic
+// Load project memory for current topic (with loading indicator)
 const loadProjectMemory = async (topicId: string) => {
   isLoadingMemory.value = true
   try {
-    const response = await fetch(`/api/memory/${topicId}`)
-    if (response.ok) {
-      const data = await response.json()
-      projectMemory.value = data.memory || null
-      console.log('📊 [DocumentsPanel] Memory loaded:', {
-        projectName: projectMemory.value?.project?.name,
-        projectPhase: projectMemory.value?.project?.phase,
-        knownFields: knownFields.value.length,
-        unknownFields: unknownFields.value.length
-      })
-    } else {
-      console.error('❌ [DocumentsPanel] Failed to load memory:', response.status, response.statusText)
-      projectMemory.value = null
-    }
-  } catch (error) {
-    console.error('❌ [DocumentsPanel] Error loading project memory:', error)
-    projectMemory.value = null
+    await loadProjectMemoryData(topicId)
   } finally {
     isLoadingMemory.value = false
   }
 }
 
-// Load challenges for current topic
+// Load project memory silently (without loading indicator) for auto-refresh
+const loadProjectMemorySilently = async (topicId: string) => {
+  try {
+    await loadProjectMemoryData(topicId, true)
+  } catch (error) {
+    console.error('Error silently loading project memory:', error)
+  }
+}
+
+// Core function to load project memory data
+const loadProjectMemoryData = async (topicId: string, silent: boolean = false) => {
+  const response = await fetch(`/api/memory/${topicId}`)
+  if (response.ok) {
+    const data = await response.json()
+    // Only update if memory actually changed to avoid flickering
+    const memoryString = JSON.stringify(data.memory)
+    const currentMemoryString = JSON.stringify(projectMemory.value)
+    
+    if (memoryString !== currentMemoryString) {
+      projectMemory.value = data.memory || null
+      if (!silent) {
+        console.log('📊 [DocumentsPanel] Memory loaded:', {
+          projectName: projectMemory.value?.project?.name,
+          projectPhase: projectMemory.value?.project?.phase,
+          knownFields: knownFields.value.length,
+          unknownFields: unknownFields.value.length
+        })
+      }
+    }
+  } else {
+    if (!silent) {
+      console.error('❌ [DocumentsPanel] Failed to load memory:', response.status, response.statusText)
+    }
+    projectMemory.value = null
+  }
+}
+
+// Load challenges for current topic (with loading indicator)
 const loadChallenges = async (topicId: string) => {
   isLoading.value = true
   try {
-    const response = await fetch(`/api/challenges?topicId=${topicId}`)
-    if (response.ok) {
-      const data = await response.json()
-      const previousCount = challenges.value.length
-      challenges.value = data.challenges || []
-      
+    await loadChallengesData(topicId)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Load challenges silently (without loading indicator) for auto-refresh
+const loadChallengesSilently = async (topicId: string) => {
+  try {
+    await loadChallengesData(topicId, true)
+  } catch (error) {
+    console.error('Error silently loading challenges:', error)
+  }
+}
+
+// Core function to load challenges data
+const loadChallengesData = async (topicId: string, silent: boolean = false) => {
+  const response = await fetch(`/api/challenges?topicId=${topicId}`)
+  if (response.ok) {
+    const data = await response.json()
+    const previousCount = challenges.value.length
+    const previousIds = new Set(challenges.value.map(c => c.id))
+    
+    challenges.value = data.challenges || []
+    
+    // Only update selection if there are actual changes to avoid flickering
+    const currentIds = new Set(challenges.value.map(c => c.id))
+    const hasChanges = previousCount !== challenges.value.length || 
+                       [...previousIds].some(id => !currentIds.has(id)) ||
+                       [...currentIds].some(id => !previousIds.has(id))
+    
+    if (hasChanges) {
       // Select the latest document (most recently created) if available
       if (challenges.value.length > 0) {
         // Challenges are already sorted by created_at DESC from the API
-        // Always select the first one (latest) to show the most recent document
-        // This ensures new documents are automatically displayed
         const latestDocumentId = challenges.value[0].id
         const isNewDocument = previousCount < challenges.value.length
         
@@ -453,16 +499,14 @@ const loadChallenges = async (topicId: string) => {
             !challenges.value.some(c => c.id === selectedDocumentId.value) ||
             isNewDocument) {
           selectedDocumentId.value = latestDocumentId
-          console.log('📄 [DocumentsPanel] Selected latest document:', challenges.value[0].title, isNewDocument ? '(NEW)' : '')
+          if (!silent) {
+            console.log('📄 [DocumentsPanel] Selected latest document:', challenges.value[0].title, isNewDocument ? '(NEW)' : '')
+          }
         }
       } else {
         selectedDocumentId.value = null
       }
     }
-  } catch (error) {
-    console.error('Error loading challenges:', error)
-  } finally {
-    isLoading.value = false
   }
 }
 
