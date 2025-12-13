@@ -32,12 +32,12 @@ function identifyStrengths(memory: SessionMemory): string[] {
   
   // Domain expertise
   if (memory.user.skills.length > 0) {
-    strengths.push(`Domain expertise in ${memory.user.skills.join(', ')}`)
+    strengths.push(`🎓 Domain expertise in ${memory.user.skills.join(', ')}`)
   }
   
   // Existing assets
   if (memory.user.assets.length > 0) {
-    strengths.push(`Existing assets: ${memory.user.assets.join(', ')}`)
+    strengths.push(`💼 Existing assets: ${memory.user.assets.join(', ')}`)
   }
   
   // Progress made
@@ -48,7 +48,7 @@ function identifyStrengths(memory: SessionMemory): string[] {
       a.toLowerCase().includes('client')
     )
     if (hasUserResearch) {
-      strengths.push('Already talking to users/clients')
+      strengths.push('🎤 Already talking to users/clients')
     }
     
     const hasCompetitorResearch = memory.progress.activities.some(a =>
@@ -57,16 +57,16 @@ function identifyStrengths(memory: SessionMemory): string[] {
       a.toLowerCase().includes('market')
     )
     if (hasCompetitorResearch) {
-      strengths.push('Market awareness through competitor analysis')
+      strengths.push('🔍 Market awareness through competitor analysis')
     }
   }
   
   // Clear value proposition
   if (memory.project.problem && memory.project.solution) {
-    strengths.push('Clear problem-solution fit articulated')
+    strengths.push('💡 Clear problem-solution fit articulated')
   }
   
-  return strengths.length > 0 ? strengths : ['Motivation to start']
+  return strengths.length > 0 ? strengths : ['💪 Motivation to start']
 }
 
 function identifyGaps(memory: SessionMemory): string[] {
@@ -76,27 +76,27 @@ function identifyGaps(memory: SessionMemory): string[] {
   if (memory.user.constraints.lacking?.some(l => 
     l.toLowerCase().includes('tech') || l.toLowerCase().includes('développ')
   )) {
-    gaps.push('Technical skills gap')
+    gaps.push('💻 Technical skills gap')
   }
   
   // Time constraints
   if (memory.user.constraints.time?.toLowerCase().includes('soir') ||
       memory.user.constraints.time?.toLowerCase().includes('weekend') ||
       memory.user.constraints.time?.toLowerCase().includes('evening')) {
-    gaps.push('Limited time availability (side project mode)')
+    gaps.push('⏰ Limited time availability (side project mode)')
   }
   
   // Budget constraints
   if (memory.user.constraints.budget) {
     const budgetMatch = memory.user.constraints.budget.match(/(\d+)/g)
     if (budgetMatch && parseInt(budgetMatch[0]) < 10000) {
-      gaps.push('Limited initial budget')
+      gaps.push('💰 Limited initial budget')
     }
   }
   
   // Missing validation
   if (memory.progress.activities.length === 0) {
-    gaps.push('No market validation activities yet')
+    gaps.push('📊 No market validation activities yet')
   } else {
     const hasPayingCustomers = memory.progress.activities.some(a =>
       a.toLowerCase().includes('vente') ||
@@ -104,7 +104,7 @@ function identifyGaps(memory: SessionMemory): string[] {
       a.toLowerCase().includes('revenue')
     )
     if (!hasPayingCustomers && memory.project.phase !== 'idée') {
-      gaps.push('No paying customers yet')
+      gaps.push('💵 No paying customers yet')
     }
   }
   
@@ -114,10 +114,10 @@ function identifyGaps(memory: SessionMemory): string[] {
     a.toLowerCase().includes('co-founder') ||
     a.toLowerCase().includes('équipe')
   )) {
-    gaps.push('Solo founder (no co-founder identified)')
+    gaps.push('👤 Solo founder (no co-founder identified)')
   }
   
-  return gaps.length > 0 ? gaps : ['Need more information to identify gaps']
+  return gaps.length > 0 ? gaps : ['❓ Need more information to identify gaps']
 }
 
 function assessPhase(memory: SessionMemory): string {
@@ -153,34 +153,44 @@ function buildDiagnosticContent(
   const projectName = memory.project.name || 'Your project'
   const description = memory.project.description || 'your project idea'
   
-  return `## Flash Diagnostic: ${projectName}
+  return `## 🎯 Flash Diagnostic: ${projectName}
 
-### Project Summary
-${description}
-${memory.project.features?.length ? `\nKey features: ${memory.project.features.join(', ')}` : ''}
+### 📋 Project Summary
+💡 ${description}
+${memory.project.features?.length ? `\n🔧 Key features: ${memory.project.features.join(', ')}` : ''}
 
-### Current Phase: ${phase.toUpperCase()}
+### 🚀 Current Phase: ${getPhaseEmoji(phase)} ${phase.toUpperCase()}
 ${getPhaseDescription(phase)}
 
-### Strengths Identified
-${strengths.map(s => `✅ ${s}`).join('\n')}
+### ✅ Strengths Identified
+${strengths.map(s => `✨ ${s}`).join('\n')}
 
-### Gaps & Risks
-${gaps.map(g => `⚠️ ${g}`).join('\n')}
+### ⚠️ Gaps & Risks
+${gaps.map(g => `🔴 ${g}`).join('\n')}
 
-### Top 3 Recommendations
+### 🎯 Top 3 Recommendations
 ${getPhaseRecommendations(phase, gaps)}
 
 ---
-*This is a flash diagnostic based on our conversation. Want to go deeper?*`
+💬 *This is a flash diagnostic based on our conversation. Want to go deeper?*`
+}
+
+function getPhaseEmoji(phase: string): string {
+  const emojis: Record<string, string> = {
+    'idée': '💡',
+    'MVP': '🔨',
+    'traction': '📈',
+    'scale': '🚀'
+  }
+  return emojis[phase] || '💡'
 }
 
 function getPhaseDescription(phase: string): string {
   const descriptions: Record<string, string> = {
-    'idée': 'You are in the early ideation phase. Focus on validating your problem and understanding your target users.',
-    'MVP': 'You are building your minimum viable product. Focus on shipping fast and getting real user feedback.',
-    'traction': 'You have initial traction. Focus on understanding what works and doubling down on it.',
-    'scale': 'You are ready to scale. Focus on systems, team, and sustainable growth.'
+    'idée': '💭 You are in the early ideation phase. Focus on validating your problem and understanding your target users.',
+    'MVP': '🔨 You are building your minimum viable product. Focus on shipping fast and getting real user feedback.',
+    'traction': '📈 You have initial traction. Focus on understanding what works and doubling down on it.',
+    'scale': '🚀 You are ready to scale. Focus on systems, team, and sustainable growth.'
   }
   return descriptions[phase] || descriptions['idée']
 }
@@ -191,31 +201,31 @@ function getPhaseRecommendations(phase: string, gaps: string[]): string {
   // Phase-specific recommendations
   switch (phase) {
     case 'idée':
-      recommendations.push('1. **Validate the problem**: Talk to 10 potential customers this week. Focus on understanding their pain, not pitching your solution.')
+      recommendations.push('1. 🎤 **Validate the problem**: Talk to 10 potential customers this week. Focus on understanding their pain, not pitching your solution.')
       if (gaps.some(g => g.includes('Technical'))) {
-        recommendations.push('2. **Find a technical co-founder or partner**: Your idea needs execution. Explore communities like CoFoundersLab or Antler.')
+        recommendations.push('2. 🤝 **Find a technical co-founder or partner**: Your idea needs execution. Explore communities like CoFoundersLab or Antler.')
       } else {
-        recommendations.push('2. **Define your micro-market**: Choose ONE specific customer segment to test with first.')
+        recommendations.push('2. 🎯 **Define your micro-market**: Choose ONE specific customer segment to test with first.')
       }
-      recommendations.push('3. **Pre-sell before building**: Try to get 3 paying early adopters before writing code.')
+      recommendations.push('3. 💰 **Pre-sell before building**: Try to get 3 paying early adopters before writing code.')
       break
       
     case 'MVP':
-      recommendations.push('1. **Ship in 2 weeks**: Whatever you have, get it in front of users. Perfect is the enemy of good.')
-      recommendations.push('2. **Set up feedback loops**: Create a simple way for users to share feedback (Slack channel, Typeform, direct calls).')
-      recommendations.push('3. **Define your North Star metric**: What\'s the ONE number that tells you if you\'re succeeding?')
+      recommendations.push('1. 🚢 **Ship in 2 weeks**: Whatever you have, get it in front of users. Perfect is the enemy of good.')
+      recommendations.push('2. 🔄 **Set up feedback loops**: Create a simple way for users to share feedback (Slack channel, Typeform, direct calls).')
+      recommendations.push('3. ⭐ **Define your North Star metric**: What\'s the ONE number that tells you if you\'re succeeding?')
       break
       
     case 'traction':
-      recommendations.push('1. **Double down on what works**: Identify your best acquisition channel and focus 80% of effort there.')
-      recommendations.push('2. **Improve retention**: Analyze why users leave and fix the top 3 reasons.')
-      recommendations.push('3. **Document your processes**: Start building systems for what you do repeatedly.')
+      recommendations.push('1. 📊 **Double down on what works**: Identify your best acquisition channel and focus 80% of effort there.')
+      recommendations.push('2. 🔒 **Improve retention**: Analyze why users leave and fix the top 3 reasons.')
+      recommendations.push('3. 📝 **Document your processes**: Start building systems for what you do repeatedly.')
       break
       
     case 'scale':
-      recommendations.push('1. **Build the team**: Your next hire should free you from operational tasks.')
-      recommendations.push('2. **Systematize growth**: Turn your best practices into repeatable playbooks.')
-      recommendations.push('3. **Consider funding strategically**: Only raise if it accelerates a proven model.')
+      recommendations.push('1. 👥 **Build the team**: Your next hire should free you from operational tasks.')
+      recommendations.push('2. 🔄 **Systematize growth**: Turn your best practices into repeatable playbooks.')
+      recommendations.push('3. 💎 **Consider funding strategically**: Only raise if it accelerates a proven model.')
       break
   }
   
