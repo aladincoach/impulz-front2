@@ -20,7 +20,8 @@
     "newQuestion": "New question",
     "addQuestion": "Add question",
     "editQuestion": "Edit question",
-    "deleteQuestion": "Delete question"
+    "deleteQuestion": "Delete question",
+    "completedQuestions": "Completed"
   }
 }
 

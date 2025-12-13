@@ -63,9 +63,106 @@
               <summary class="cursor-pointer text-sm text-gray-500 font-light select-none hover:text-gray-700">
                 {{ $t('messageBubble.myNextQuestions') }} ({{ displayedQuestions.length }} {{ displayedQuestions.length === 1 ? $t('messageBubble.question') : $t('messageBubble.questions') }})
               </summary>
-              <ul class="text-sm text-gray-500 font-light mt-2 space-y-2 select-none">
+              
+              <!-- Checked questions in collapsible section -->
+              <details v-if="checkedQuestions.length > 0" class="mt-2" :open="!checkedQuestionsCollapsed">
+                <summary class="cursor-pointer text-xs text-gray-400 font-light select-none hover:text-gray-600 mb-2">
+                  {{ $t('messageBubble.completedQuestions') }} ({{ checkedQuestions.length }})
+                </summary>
+                <ul class="text-sm text-gray-500 font-light mt-2 space-y-2 select-none">
+                  <li 
+                    v-for="(questionState, checkedIndex) in checkedQuestions" 
+                    :key="questionState.id"
+                    :draggable="true"
+                    data-question-item
+                    data-question-checked="true"
+                    :class="[
+                      'flex items-start gap-2 group cursor-move transition-all',
+                      draggedQuestionId === questionState.id ? 'opacity-50 scale-95' : '',
+                      draggedOverIndex === checkedIndex && draggedQuestionId !== questionState.id ? 'border-t-2 border-orange-500 pt-2' : ''
+                    ]"
+                    @dragstart="handleDragStart($event, questionState.id, checkedIndex)"
+                    @dragover.prevent="handleDragOver($event, checkedIndex)"
+                    @dragenter.prevent="draggedOverIndex = checkedIndex"
+                    @dragleave="handleDragLeave"
+                    @drop="handleDrop($event, checkedIndex)"
+                    @dragend="handleDragEnd"
+                    @touchstart="handleTouchStart($event, questionState.id, checkedIndex)"
+                    @touchmove.prevent="handleTouchMove($event, checkedIndex)"
+                    @touchend="handleTouchEnd"
+                  >
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                      <svg 
+                        class="w-5 h-5 text-gray-400 cursor-grab active:cursor-grabbing touch-none hover:text-gray-600 transition-colors" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                        @mousedown.stop
+                        @touchstart.stop
+                      >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
+                      </svg>
+                      <input 
+                        type="checkbox" 
+                        :id="questionState.id"
+                        :checked="questionState.checked"
+                        class="mt-0.5 h-4 w-4 text-gray-400 border-gray-300 rounded focus:ring-gray-500 cursor-pointer"
+                        @change="handleQuestionCheck(questionState.id)"
+                        @mousedown.stop
+                        @touchstart.stop
+                      />
+                    </div>
+                    <div class="flex-1 flex items-start gap-2 min-w-0">
+                      <input
+                        v-if="editingQuestionId === questionState.id"
+                        v-model="editingQuestionText"
+                        @blur="saveQuestionEdit(questionState.id)"
+                        @keyup.enter="saveQuestionEdit(questionState.id)"
+                        @keyup.esc="cancelQuestionEdit"
+                        class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        autofocus
+                      />
+                      <label 
+                        v-else
+                        :for="questionState.id" 
+                        :class="[
+                          'flex-1 cursor-pointer',
+                          questionState.checked ? 'line-through text-gray-400' : ''
+                        ]"
+                        @dblclick="startQuestionEdit(questionState.id, questionState.question)"
+                      >
+                        {{ questionState.question || $t('messageBubble.newQuestion') }}
+                      </label>
+                      <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          v-if="editingQuestionId !== questionState.id"
+                          @click="startQuestionEdit(questionState.id, questionState.question)"
+                          class="p-1 text-gray-400 hover:text-gray-600"
+                          :title="$t('messageBubble.editQuestion')"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          @click="deleteQuestion(questionState.id)"
+                          class="p-1 text-gray-400 hover:text-red-600"
+                          :title="$t('messageBubble.deleteQuestion')"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                </ul>
+              </details>
+              
+              <!-- Unchecked questions -->
+              <ul v-if="uncheckedQuestions.length > 0" class="text-sm text-gray-500 font-light mt-2 space-y-2 select-none">
                 <li 
-                  v-for="(questionState, index) in displayedQuestions" 
+                  v-for="(questionState, index) in uncheckedQuestions" 
                   :key="questionState.id" 
                   :draggable="true"
                   data-question-item
@@ -149,18 +246,20 @@
                     </div>
                   </div>
                 </li>
-                <li class="flex items-center gap-2 pt-1">
-                  <button
-                    @click="addNewQuestion"
-                    class="text-xs text-orange-500 hover:text-orange-600 flex items-center gap-1"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                    {{ $t('messageBubble.addQuestion') }}
-                  </button>
-                </li>
               </ul>
+              
+              <!-- Add question button -->
+              <div class="flex items-center gap-2 pt-2 mt-2">
+                <button
+                  @click="addNewQuestion"
+                  class="text-xs text-orange-500 hover:text-orange-600 flex items-center gap-1"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                  {{ $t('messageBubble.addQuestion') }}
+                </button>
+              </div>
             </details>
           </template>
         </div>
@@ -224,6 +323,9 @@ const draggedQuestionId = ref<string | null>(null)
 const draggedOverIndex = ref<number | null>(null)
 const touchStartY = ref<number | null>(null)
 const touchStartIndex = ref<number | null>(null)
+
+// Collapsible section state
+const checkedQuestionsCollapsed = ref(true)
 
 const renderMarkdown = (text: string): string => {
   if (!text) return ''
@@ -501,6 +603,15 @@ const displayedQuestions = computed(() => {
   }
 })
 
+// Separate checked and unchecked questions
+const checkedQuestions = computed(() => {
+  return displayedQuestions.value.filter(q => q.checked)
+})
+
+const uncheckedQuestions = computed(() => {
+  return displayedQuestions.value.filter(q => !q.checked)
+})
+
 const containerClass = computed(() => {
   return props.message.isUser 
     ? 'flex justify-end mb-4 px-4'
@@ -585,16 +696,37 @@ const handleDrop = (event: DragEvent, toIndex: number) => {
   event.preventDefault()
   if (draggedQuestionId.value === null) return
   
-  const fromIndex = displayedQuestions.value.findIndex(q => q.id === draggedQuestionId.value)
-  if (fromIndex !== -1 && fromIndex !== toIndex) {
-    // Find the actual indices in allQuestions
-    const allQuestionsArray = getAllQuestions.value
-    const fromGlobalIndex = allQuestionsArray.findIndex(q => q.id === draggedQuestionId.value)
-    const toGlobalIndex = allQuestionsArray.findIndex(q => q.id === displayedQuestions.value[toIndex].id)
-    
-    if (fromGlobalIndex !== -1 && toGlobalIndex !== -1) {
-      reorderQuestions(fromGlobalIndex, toGlobalIndex)
-    }
+  // Find the dragged question to determine if it's checked or unchecked
+  const draggedQuestion = displayedQuestions.value.find(q => q.id === draggedQuestionId.value)
+  if (!draggedQuestion) {
+    handleDragEnd()
+    return
+  }
+  
+  // Determine which list we're dropping into based on the target
+  const targetElement = event.currentTarget as HTMLElement
+  const isCheckedSection = targetElement.closest('[data-question-checked="true"]') !== null
+  
+  // Find the target question - check both lists
+  let targetQuestion: typeof draggedQuestion | undefined
+  if (isCheckedSection) {
+    targetQuestion = checkedQuestions.value[toIndex]
+  } else {
+    targetQuestion = uncheckedQuestions.value[toIndex]
+  }
+  
+  if (!targetQuestion) {
+    handleDragEnd()
+    return
+  }
+  
+  // Find the actual indices in allQuestions
+  const allQuestionsArray = getAllQuestions.value
+  const fromGlobalIndex = allQuestionsArray.findIndex(q => q.id === draggedQuestionId.value)
+  const toGlobalIndex = allQuestionsArray.findIndex(q => q.id === targetQuestion.id)
+  
+  if (fromGlobalIndex !== -1 && toGlobalIndex !== -1 && fromGlobalIndex !== toGlobalIndex) {
+    reorderQuestions(fromGlobalIndex, toGlobalIndex)
   }
   
   handleDragEnd()
@@ -678,14 +810,23 @@ const handleTouchEnd = (event: TouchEvent) => {
   
   const finalIndex = draggedOverIndex.value ?? touchStartIndex.value
   
-  if (touchStartIndex.value !== finalIndex && finalIndex >= 0 && finalIndex < displayedQuestions.value.length) {
+  // Determine which list we're in
+  const isCheckedSection = target.closest('[data-question-checked="true"]') !== null
+  let targetQuestion: ReturnType<typeof displayedQuestions.value.find> | undefined
+  
+  if (isCheckedSection && finalIndex >= 0 && finalIndex < checkedQuestions.value.length) {
+    targetQuestion = checkedQuestions.value[finalIndex]
+  } else if (!isCheckedSection && finalIndex >= 0 && finalIndex < uncheckedQuestions.value.length) {
+    targetQuestion = uncheckedQuestions.value[finalIndex]
+  }
+  
+  if (touchStartIndex.value !== finalIndex && targetQuestion) {
     // Find the actual indices in allQuestions
     const allQuestionsArray = getAllQuestions.value
     const fromGlobalIndex = allQuestionsArray.findIndex(q => q.id === draggedQuestionId.value)
-    const toQuestion = displayedQuestions.value[finalIndex]
-    const toGlobalIndex = allQuestionsArray.findIndex(q => q.id === toQuestion?.id)
+    const toGlobalIndex = allQuestionsArray.findIndex(q => q.id === targetQuestion.id)
     
-    if (fromGlobalIndex !== -1 && toGlobalIndex !== -1) {
+    if (fromGlobalIndex !== -1 && toGlobalIndex !== -1 && fromGlobalIndex !== toGlobalIndex) {
       reorderQuestions(fromGlobalIndex, toGlobalIndex)
     }
   }
