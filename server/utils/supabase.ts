@@ -16,8 +16,8 @@ export function getSupabaseClient(event?: any) {
   }
 
   const config = event ? useRuntimeConfig(event) : useRuntimeConfig()
-  const supabaseUrl = config.supabaseUrl || config.public.supabaseUrl
-  const supabaseKey = config.supabaseServiceKey || config.public.supabaseAnonKey
+  const supabaseUrl = config.supabaseUrl
+  const supabaseKey = config.supabaseServiceKey || config.supabaseAnonKey
 
   if (!supabaseUrl || !supabaseKey) {
     throw new Error('Supabase configuration is missing. Please set SUPABASE_URL and SUPABASE_SERVICE_KEY or SUPABASE_ANON_KEY environment variables.')
