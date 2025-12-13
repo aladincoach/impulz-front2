@@ -117,6 +117,21 @@ export const useQuestions = () => {
     allQuestions.value = allQuestions.value.filter(q => q.id !== id)
   }
 
+  const reorderQuestions = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return
+    
+    const questions = [...allQuestions.value]
+    const [moved] = questions.splice(fromIndex, 1)
+    questions.splice(toIndex, 0, moved)
+    
+    // Update questionIndex for all questions to reflect new order
+    questions.forEach((q, index) => {
+      q.questionIndex = index
+    })
+    
+    allQuestions.value = questions
+  }
+
   const getQuestionsForMessagePart = (messageId: string, partIndex: number): QuestionState[] => {
     return allQuestions.value.filter(
       q => q.messageId === messageId && q.partIndex === partIndex
@@ -139,6 +154,7 @@ export const useQuestions = () => {
     updateQuestion,
     addNewQuestion,
     deleteQuestion,
+    reorderQuestions,
     getQuestionsForMessagePart,
     getAllQuestions,
     getAllQuestionsList

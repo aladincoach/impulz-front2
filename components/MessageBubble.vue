@@ -63,19 +63,48 @@
               <summary class="cursor-pointer text-sm text-gray-500 font-light select-none hover:text-gray-700">
                 {{ $t('messageBubble.myNextQuestions') }} ({{ displayedQuestions.length }} {{ displayedQuestions.length === 1 ? $t('messageBubble.question') : $t('messageBubble.questions') }})
               </summary>
-              <ul class="text-sm text-gray-500 font-light mt-2 space-y-2">
+              <ul class="text-sm text-gray-500 font-light mt-2 space-y-2 select-none">
                 <li 
-                  v-for="questionState in displayedQuestions" 
+                  v-for="(questionState, index) in displayedQuestions" 
                   :key="questionState.id" 
-                  class="flex items-start gap-2 group"
+                  :draggable="true"
+                  data-question-item
+                  :class="[
+                    'flex items-start gap-2 group cursor-move transition-all',
+                    draggedQuestionId === questionState.id ? 'opacity-50 scale-95' : '',
+                    draggedOverIndex === index && draggedQuestionId !== questionState.id ? 'border-t-2 border-orange-500 pt-2' : ''
+                  ]"
+                  @dragstart="handleDragStart($event, questionState.id, index)"
+                  @dragover.prevent="handleDragOver($event, index)"
+                  @dragenter.prevent="draggedOverIndex = index"
+                  @dragleave="handleDragLeave"
+                  @drop="handleDrop($event, index)"
+                  @dragend="handleDragEnd"
+                  @touchstart="handleTouchStart($event, questionState.id, index)"
+                  @touchmove.prevent="handleTouchMove($event, index)"
+                  @touchend="handleTouchEnd"
                 >
-                  <input 
-                    type="checkbox" 
-                    :id="questionState.id"
-                    :checked="questionState.checked"
-                    class="mt-0.5 h-4 w-4 text-gray-400 border-gray-300 rounded focus:ring-gray-500"
-                    @change="handleQuestionCheck(questionState.id)"
-                  />
+                  <div class="flex items-center gap-2 flex-shrink-0">
+                    <svg 
+                      class="w-5 h-5 text-gray-400 cursor-grab active:cursor-grabbing touch-none hover:text-gray-600 transition-colors" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                      @mousedown.stop
+                      @touchstart.stop
+                    >
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
+                    </svg>
+                    <input 
+                      type="checkbox" 
+                      :id="questionState.id"
+                      :checked="questionState.checked"
+                      class="mt-0.5 h-4 w-4 text-gray-400 border-gray-300 rounded focus:ring-gray-500 cursor-pointer"
+                      @change="handleQuestionCheck(questionState.id)"
+                      @mousedown.stop
+                      @touchstart.stop
+                    />
+                  </div>
                   <div class="flex-1 flex items-start gap-2 min-w-0">
                     <input
                       v-if="editingQuestionId === questionState.id"
@@ -176,6 +205,7 @@ const {
   updateQuestion, 
   addNewQuestion: addNewQuestionToStore, 
   deleteQuestion: deleteQuestionFromStore,
+  reorderQuestions,
   getQuestionsForMessagePart,
   getAllQuestions,
   getAllQuestionsList
@@ -188,6 +218,12 @@ fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{metho
 
 const editingQuestionId = ref<string | null>(null)
 const editingQuestionText = ref('')
+
+// Drag and drop state
+const draggedQuestionId = ref<string | null>(null)
+const draggedOverIndex = ref<number | null>(null)
+const touchStartY = ref<number | null>(null)
+const touchStartIndex = ref<number | null>(null)
 
 const renderMarkdown = (text: string): string => {
   if (!text) return ''
@@ -522,6 +558,142 @@ const addNewQuestion = () => {
 
 const deleteQuestion = (questionId: string) => {
   deleteQuestionFromStore(questionId)
+}
+
+// Drag and drop handlers (mouse)
+const handleDragStart = (event: DragEvent, questionId: string, index: number) => {
+  draggedQuestionId.value = questionId
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/html', questionId)
+  }
+}
+
+const handleDragOver = (event: DragEvent, index: number) => {
+  event.preventDefault()
+  draggedOverIndex.value = index
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
+}
+
+const handleDragLeave = () => {
+  // Don't clear draggedOverIndex here as it might flicker
+}
+
+const handleDrop = (event: DragEvent, toIndex: number) => {
+  event.preventDefault()
+  if (draggedQuestionId.value === null) return
+  
+  const fromIndex = displayedQuestions.value.findIndex(q => q.id === draggedQuestionId.value)
+  if (fromIndex !== -1 && fromIndex !== toIndex) {
+    // Find the actual indices in allQuestions
+    const allQuestionsArray = getAllQuestions.value
+    const fromGlobalIndex = allQuestionsArray.findIndex(q => q.id === draggedQuestionId.value)
+    const toGlobalIndex = allQuestionsArray.findIndex(q => q.id === displayedQuestions.value[toIndex].id)
+    
+    if (fromGlobalIndex !== -1 && toGlobalIndex !== -1) {
+      reorderQuestions(fromGlobalIndex, toGlobalIndex)
+    }
+  }
+  
+  handleDragEnd()
+}
+
+const handleDragEnd = () => {
+  draggedQuestionId.value = null
+  draggedOverIndex.value = null
+}
+
+// Touch handlers (mobile)
+const handleTouchStart = (event: TouchEvent, questionId: string, index: number) => {
+  // Only start drag if touching the drag handle area (not checkbox or buttons)
+  const target = event.target as HTMLElement
+  if (target.closest('input[type="checkbox"]') || target.closest('button') || target.closest('input[type="text"]')) {
+    return
+  }
+  
+  touchStartY.value = event.touches[0].clientY
+  touchStartIndex.value = index
+  draggedQuestionId.value = questionId
+  const element = event.currentTarget as HTMLElement
+  if (element) {
+    element.style.transition = 'none'
+  }
+}
+
+const handleTouchMove = (event: TouchEvent, index: number) => {
+  if (touchStartY.value === null || touchStartIndex.value === null || draggedQuestionId.value === null) return
+  
+  event.preventDefault()
+  const touchY = event.touches[0].clientY
+  const deltaY = touchY - touchStartY.value
+  
+  // Only move if drag has started (threshold to prevent accidental drags)
+  if (Math.abs(deltaY) < 10) return
+  
+  // Find the element being dragged
+  const draggedElement = event.currentTarget as HTMLElement
+  if (draggedElement) {
+    draggedElement.style.transform = `translateY(${deltaY}px)`
+    draggedElement.style.zIndex = '1000'
+  }
+  
+  // Find which index we're over by checking all question items
+  const allItems = Array.from(document.querySelectorAll('[data-question-item]')) as HTMLElement[]
+  const startIndex = touchStartIndex.value
+  if (startIndex === null) return
+  
+  let newIndex = startIndex
+  
+  allItems.forEach((item, i) => {
+    const rect = item.getBoundingClientRect()
+    const itemCenter = rect.top + rect.height / 2
+    
+    if (touchY < itemCenter && i < startIndex) {
+      newIndex = Math.min(newIndex, i)
+    } else if (touchY > itemCenter && i > startIndex) {
+      newIndex = Math.max(newIndex, i)
+    }
+  })
+  
+  draggedOverIndex.value = newIndex
+}
+
+const handleTouchEnd = (event: TouchEvent) => {
+  if (touchStartIndex.value === null || draggedQuestionId.value === null) {
+    touchStartY.value = null
+    touchStartIndex.value = null
+    draggedQuestionId.value = null
+    draggedOverIndex.value = null
+    return
+  }
+  
+  const target = event.currentTarget as HTMLElement
+  if (target) {
+    target.style.transform = ''
+    target.style.transition = ''
+    target.style.zIndex = ''
+  }
+  
+  const finalIndex = draggedOverIndex.value ?? touchStartIndex.value
+  
+  if (touchStartIndex.value !== finalIndex && finalIndex >= 0 && finalIndex < displayedQuestions.value.length) {
+    // Find the actual indices in allQuestions
+    const allQuestionsArray = getAllQuestions.value
+    const fromGlobalIndex = allQuestionsArray.findIndex(q => q.id === draggedQuestionId.value)
+    const toQuestion = displayedQuestions.value[finalIndex]
+    const toGlobalIndex = allQuestionsArray.findIndex(q => q.id === toQuestion?.id)
+    
+    if (fromGlobalIndex !== -1 && toGlobalIndex !== -1) {
+      reorderQuestions(fromGlobalIndex, toGlobalIndex)
+    }
+  }
+  
+  touchStartY.value = null
+  touchStartIndex.value = null
+  draggedQuestionId.value = null
+  draggedOverIndex.value = null
 }
 </script>
 
