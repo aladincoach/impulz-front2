@@ -11,6 +11,12 @@
     "loading": "Chargement...",
     "error": "Une erreur s'est produite",
     "retry": "Réessayer"
+  },
+  "messageBubble": {
+    "thinking": "Réflexion",
+    "myNextQuestions": "Mes prochaines questions",
+    "question": "question",
+    "questions": "questions"
   }
 }
 

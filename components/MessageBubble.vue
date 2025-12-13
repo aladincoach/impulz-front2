@@ -16,7 +16,7 @@
           <template v-else-if="part.type === 'thinking'">
             <details class="border-l-2 border-gray-300 pl-3">
               <summary class="cursor-pointer text-sm text-gray-500 font-light select-none hover:text-gray-700">
-                Thinking :
+                {{ $t('messageBubble.thinking') }} :
               </summary>
               <div class="text-sm text-gray-500 font-light whitespace-pre-wrap">
                 {{ part.content }}
@@ -59,14 +59,25 @@
             </div>
           </template>
           <template v-else-if="part.type === 'backlog'">
-            <details class="mt-3 border-l-2 border-blue-300 pl-3">
-              <summary class="cursor-pointer text-sm text-blue-600 font-medium select-none hover:text-blue-800">
-                📋 Coming up next ({{ part.questions?.length || 0 }} questions)
+            <details class="mt-3 border-l-2 border-gray-300 pl-3">
+              <summary class="cursor-pointer text-sm text-gray-500 font-light select-none hover:text-gray-700">
+                {{ $t('messageBubble.myNextQuestions') }} ({{ part.questions?.length || 0 }} {{ part.questions?.length === 1 ? $t('messageBubble.question') : $t('messageBubble.questions') }})
               </summary>
-              <ul class="text-sm text-gray-600 mt-2 space-y-1">
+              <ul class="text-sm text-gray-500 font-light mt-2 space-y-2">
                 <li v-for="(question, qIndex) in part.questions" :key="qIndex" class="flex items-start gap-2">
-                  <span class="text-blue-400">→</span>
-                  <span>{{ question }}</span>
+                  <input 
+                    type="checkbox" 
+                    :id="`question-${index}-${qIndex}`"
+                    :checked="isQuestionChecked(index, qIndex)"
+                    class="mt-0.5 h-4 w-4 text-gray-400 border-gray-300 rounded focus:ring-gray-500"
+                    @change="handleQuestionCheck(index, qIndex)"
+                  />
+                  <label 
+                    :for="`question-${index}-${qIndex}`" 
+                    class="flex-1 cursor-pointer"
+                  >
+                    {{ question }}
+                  </label>
                 </li>
               </ul>
             </details>
@@ -80,6 +91,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { marked } from 'marked'
+import { useI18n } from 'vue-i18n'
 
 interface Message {
   id: string
@@ -104,6 +116,8 @@ const emit = defineEmits<{
 }>()
 
 const selectedOptionIndex = ref<number | null>(null)
+const checkedQuestions = ref<Map<string, Set<number>>>(new Map())
+const { t } = useI18n()
 
 const containerClass = computed(() => {
   return props.message.isUser 
@@ -124,6 +138,24 @@ const bubbleClass = computed(() => {
 const handleOptionClick = (option: string, index: number) => {
   selectedOptionIndex.value = index
   emit('optionClick', option)
+}
+
+const handleQuestionCheck = (partIndex: number, questionIndex: number) => {
+  const key = `part-${partIndex}`
+  if (!checkedQuestions.value.has(key)) {
+    checkedQuestions.value.set(key, new Set())
+  }
+  const questionSet = checkedQuestions.value.get(key)!
+  if (questionSet.has(questionIndex)) {
+    questionSet.delete(questionIndex)
+  } else {
+    questionSet.add(questionIndex)
+  }
+}
+
+const isQuestionChecked = (partIndex: number, questionIndex: number): boolean => {
+  const key = `part-${partIndex}`
+  return checkedQuestions.value.get(key)?.has(questionIndex) || false
 }
 
 const renderMarkdown = (text: string): string => {

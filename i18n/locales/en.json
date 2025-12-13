@@ -11,6 +11,12 @@
     "loading": "Loading...",
     "error": "An error occurred",
     "retry": "Retry"
+  },
+  "messageBubble": {
+    "thinking": "Thinking",
+    "myNextQuestions": "My next questions",
+    "question": "question",
+    "questions": "questions"
   }
 }
 
