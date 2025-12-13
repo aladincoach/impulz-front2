@@ -12,9 +12,6 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     systemPromptCache: process.env.SYSTEM_PROMPT_CACHE,
-    supabaseUrl: process.env.SUPABASE_URL,
-    supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY,
-    supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
     public: {
       useWorkflow: process.env.USE_WORKFLOW !== 'false' // Default to true
     }

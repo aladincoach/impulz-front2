@@ -9,15 +9,16 @@ let supabaseClient: ReturnType<typeof createClient> | null = null
 /**
  * Get Supabase client instance (server-side only)
  * Uses service key for admin operations
+ * Reads directly from process.env to avoid secrets being serialized into build
  */
 export function getSupabaseClient(event?: any) {
   if (supabaseClient) {
     return supabaseClient
   }
 
-  const config = event ? useRuntimeConfig(event) : useRuntimeConfig()
-  const supabaseUrl = config.supabaseUrl
-  const supabaseKey = config.supabaseServiceKey || config.supabaseAnonKey
+  // Read directly from process.env to prevent secrets from being serialized into build
+  const supabaseUrl = process.env.SUPABASE_URL
+  const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseKey) {
     throw new Error('Supabase configuration is missing. Please set SUPABASE_URL and SUPABASE_SERVICE_KEY or SUPABASE_ANON_KEY environment variables.')
