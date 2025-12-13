@@ -77,7 +77,7 @@
       <!-- Fixed Input at Bottom -->
       <div class="sticky bottom-0 bg-white border-t border-gray-200">
         <div class="max-w-7xl mx-auto px-4 py-4">
-          <ChatInput ref="chatInputRef" @send="handleSendMessage" :disabled="isWaitingForResponse || !currentTopicId" />
+          <ChatInput ref="chatInputRef" @send="handleSendMessage" :disabled="isWaitingForResponse || !currentTopicId || projectsLoading" />
         </div>
       </div>
     </div>
@@ -144,7 +144,11 @@ const {
   currentTopic,
   currentProjectId,
   currentTopicId,
-  loadProjects
+  loadProjects,
+  isLoading: projectsLoading,
+  createTopic,
+  createProject,
+  setCurrentTopic
 } = useProjects()
 
 // Topic change detection
@@ -178,12 +182,56 @@ watch(currentTopicId, (newTopicId, oldTopicId) => {
   }
 })
 
+// Internationalization
+const { t, locale } = useI18n()
+
+// Ensure a topic exists for the session
+const ensureTopicExists = async () => {
+  // If no project exists, create one
+  if (!currentProjectId.value && currentProject.value === null) {
+    const defaultProjectName = t('projects.defaultName', 'New Project')
+    const newProject = await createProject(defaultProjectName)
+    if (newProject) {
+      console.log('✅ [Frontend] Created default project:', newProject.id)
+    }
+  }
+
+  // If no topic exists, create one
+  if (!currentTopicId.value && currentProjectId.value) {
+    const defaultTopicName = t('topics.defaultName', 'New Topic')
+    const newTopic = await createTopic(currentProjectId.value, defaultTopicName)
+    if (newTopic) {
+      setCurrentTopic(newTopic.id)
+      console.log('✅ [Frontend] Created default topic:', newTopic.id)
+      return newTopic.id
+    }
+  }
+
+  return currentTopicId.value
+}
+
 // Load projects on mount
 onMounted(async () => {
-  await loadProjects()
-  // Load conversation for current topic if it exists
-  if (currentTopicId.value) {
-    await loadConversationForTopic(currentTopicId.value)
+  try {
+    await loadProjects()
+    
+    // Ensure a topic exists - create one if needed
+    const topicId = await ensureTopicExists()
+    
+    // Load conversation for current topic if it exists
+    if (topicId) {
+      await loadConversationForTopic(topicId)
+    } else {
+      console.warn('⚠️ [Frontend] Could not ensure topic exists')
+    }
+  } catch (error) {
+    console.error('❌ [Frontend] Failed to load projects:', error)
+    // Try to create default project and topic as fallback
+    try {
+      await ensureTopicExists()
+    } catch (fallbackError) {
+      console.error('❌ [Frontend] Failed to create fallback topic:', fallbackError)
+    }
   }
 })
 
@@ -324,8 +372,16 @@ const cancelTopicChange = () => {
 }
 
 const handleSendMessage = async (text: string) => {
-  // Check if we have a current topic
-  if (!currentTopicId.value) {
+  // Check if projects are still loading
+  if (projectsLoading.value) {
+    console.warn('⏳ [Frontend] Projects are still loading, please wait...')
+    return
+  }
+
+  // Check if we have a current topic (capture value to prevent race conditions)
+  const topicIdToSend = currentTopicId.value
+  if (!topicIdToSend) {
+    console.error('❌ [Frontend] No topic selected')
     alert('Please select or create a topic first')
     return
   }
@@ -345,7 +401,7 @@ const handleSendMessage = async (text: string) => {
     isUser: true
   }
   messages.value.push(userMessage)
-  lastMessageTopic.value = currentTopicId.value
+  lastMessageTopic.value = topicIdToSend
 
   // Scroll to bottom
   nextTick(() => {
@@ -375,7 +431,7 @@ const handleSendMessage = async (text: string) => {
     console.log('🔵 [Frontend] Envoi du message:', text)
     console.log('🔵 [Frontend] Historique:', conversationHistory.length - 1, 'messages')
     console.log('🔵 [Frontend] Project ID:', currentProjectId.value)
-    console.log('🔵 [Frontend] Topic ID:', currentTopicId.value)
+    console.log('🔵 [Frontend] Topic ID:', topicIdToSend)
 
     // Appeler l'API avec streaming
     const response = await fetch('/api/chat', {
@@ -387,7 +443,7 @@ const handleSendMessage = async (text: string) => {
         message: text,
         conversationHistory: conversationHistory.slice(0, -1), // Exclure le message actuel
         projectId: currentProjectId.value,
-        topicId: currentTopicId.value,
+        topicId: topicIdToSend,
         locale: locale.value
       })
     })
@@ -395,9 +451,21 @@ const handleSendMessage = async (text: string) => {
     console.log('📥 [Frontend] Réponse API reçue, status:', response.status)
 
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('❌ [Frontend] Erreur API:', errorText)
-      throw new Error('Failed to get response from Claude')
+      // Try to parse as JSON first, fallback to text
+      let errorData: any
+      const contentType = response.headers.get('content-type')
+      if (contentType && contentType.includes('application/json')) {
+        errorData = await response.json()
+        console.error('❌ [Frontend] Erreur API:', errorData)
+      } else {
+        const errorText = await response.text()
+        console.error('❌ [Frontend] Erreur API:', errorText)
+        errorData = { message: errorText }
+      }
+      
+      // Show user-friendly error message
+      const errorMessage = errorData.message || errorData.statusMessage || 'Failed to get response from Claude'
+      throw new Error(errorMessage)
     }
 
     // Remplacer le message de chargement par un message vide
@@ -495,16 +563,24 @@ const handleSendMessage = async (text: string) => {
       updateAvailableOptions()
       chatInputRef.value?.focus()
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ [Frontend] Error sending message:', error)
     isWaitingForResponse.value = false
+    
+    // Get user-friendly error message
+    let errorMessage = "Désolé, une erreur s'est produite. Veuillez réessayer."
+    if (error?.message) {
+      errorMessage = error.message
+    } else if (typeof error === 'string') {
+      errorMessage = error
+    }
     
     // Remplacer le message de chargement par un message d'erreur
     const loadingIndex = messages.value.findIndex(m => m.id === loadingMessage.id)
     if (loadingIndex !== -1) {
       messages.value[loadingIndex] = {
         id: `bot-error-${Date.now()}`,
-        text: "Désolé, une erreur s'est produite. Veuillez réessayer.",
+        text: errorMessage,
         isUser: false,
         isLoading: false
       }
@@ -526,9 +602,6 @@ const handleOptionClick = (option: string) => {
   // Send the selected option as a new message
   handleSendMessage(option)
 }
-
-// Internationalization
-const { t, locale } = useI18n()
 
 // Set page title (Nuxt composable)
 const title = computed(() => t('chat.pageTitle'))
