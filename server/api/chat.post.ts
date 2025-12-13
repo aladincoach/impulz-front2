@@ -1,21 +1,23 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { getBaseSystemPrompt } from '../utils/basePrompt'
 import { 
-  getConversationState, 
-  setConversationState, 
-  generateSessionId 
-} from '../utils/conversationStateManager'
-import { 
-  getStagePrompt, 
-  updateConversationState, 
-  parseAssistantResponse 
-} from '../utils/workflowEngine'
+  getSession, 
+  generateSessionId,
+  parseMemoryUpdates,
+  parseQuestionBacklog,
+  updateMemory,
+  updateQuestionBacklog
+} from '../utils/memory'
+import { buildSystemPrompt, shouldTriggerCapability, processResponse } from '../utils/reasoningEngine'
+import { getCapabilityPrompt } from '../utils/capabilities'
+import { getSupabaseClient } from '../utils/supabase'
 
 export default defineEventHandler(async (event) => {
-  const { message, conversationHistory, sessionId: providedSessionId } = await readBody(event)
+  const { message, conversationHistory, sessionId: providedSessionId, projectId, topicId, locale } = await readBody(event)
 
-  console.log('🔵 [API] Message reçu:', message)
-  console.log('🔵 [API] Historique:', conversationHistory?.length || 0, 'messages')
+  console.log('🔵 [API] Message received:', message)
+  console.log('🔵 [API] History:', conversationHistory?.length || 0, 'messages')
+  console.log('🔵 [API] Project ID:', projectId)
+  console.log('🔵 [API] Topic ID:', topicId)
 
   if (!message) {
     throw createError({
@@ -24,25 +26,113 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  if (!topicId) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Topic ID is required. Please select or create a topic.'
+    })
+  }
+
   const config = useRuntimeConfig(event)
-  const useWorkflow = config.public?.useWorkflow !== false // Default to true
   const useCache = config.systemPromptCache
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return { statusCode: 500, body: 'Missing ANTHROPIC_API_KEY' }
 
-  console.log('✅ [API] API Key présente (length:', apiKey.length, ')')
-  console.log('⚙️  [CONFIG] Workflow mode:', useWorkflow ? 'activé (stage-based)' : 'désactivé (monolithic)')
-  console.log('⚙️  [CONFIG] Cache system prompt:', useCache ? 'activé (hardcoded)' : 'désactivé (from Notion)')
+  console.log('✅ [API] API Key present (length:', apiKey.length, ')')
 
   const client = new Anthropic({
     apiKey: apiKey
   })
 
   try {
-    // Construire l'historique de conversation pour Claude
+    // Generate session ID that includes topic ID for topic-specific memory
+    // This ensures each topic has its own session memory
+    const baseSessionId = providedSessionId || generateSessionId(conversationHistory)
+    const sessionId = topicId ? `${baseSessionId}_topic_${topicId}` : baseSessionId
+    const session = getSession(sessionId)
+    
+    console.log('🔄 [SESSION] ID:', sessionId)
+    console.log('🔄 [SESSION] Memory:', JSON.stringify(session.memory.project, null, 2))
+    console.log('🔄 [SESSION] Questions pending:', session.questions.filter(q => q.status === 'pending').length)
+
+    // Get or create conversation in Supabase
+    const supabase = getSupabaseClient(event)
+    let conversationId: string | null = null
+    
+    try {
+      // Try to find existing conversation by topic_id and session_id
+      // This ensures each topic has its own conversation thread
+      const { data: existingConversation, error: findError } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('topic_id', topicId)
+        .eq('session_id', sessionId)
+        .single() as { data: { id: string } | null; error: any }
+
+      if (existingConversation) {
+        conversationId = existingConversation.id
+        console.log('💾 [SUPABASE] Found existing conversation:', conversationId)
+      } else {
+        // Create new conversation for this topic
+        const { data: newConversation, error: createError } = await supabase
+          .from('conversations')
+          .insert({ 
+            session_id: sessionId,
+            project_id: projectId || null,
+            topic_id: topicId
+          } as any)
+          .select('id')
+          .single() as { data: { id: string } | null; error: any }
+
+        if (createError) {
+          console.error('❌ [SUPABASE] Error creating conversation:', createError)
+        } else if (newConversation) {
+          conversationId = newConversation.id
+          console.log('💾 [SUPABASE] Created new conversation:', conversationId)
+        }
+      }
+
+      // Save user message to Supabase
+      if (conversationId) {
+        const { error: messageError } = await supabase
+          .from('messages')
+          .insert({
+            conversation_id: conversationId,
+            content: message,
+            role: 'user'
+          } as any)
+
+        if (messageError) {
+          console.error('❌ [SUPABASE] Error saving user message:', messageError)
+        } else {
+          console.log('💾 [SUPABASE] Saved user message')
+        }
+      }
+    } catch (supabaseError) {
+      // Don't fail the request if Supabase fails, just log it
+      console.error('❌ [SUPABASE] Error in Supabase operations:', supabaseError)
+    }
+
+    // Check if a capability should be triggered
+    const capabilityCheck = shouldTriggerCapability(sessionId, message)
+    console.log('🎯 [CAPABILITY]', capabilityCheck.reason)
+
+    // Build system prompt
+    let systemPrompt = await buildSystemPrompt(sessionId, useCache, locale || 'en')
+    
+    // Add capability-specific instructions if triggered
+    if (capabilityCheck.capability) {
+      const capabilityPrompt = getCapabilityPrompt(capabilityCheck.capability, session.memory)
+      systemPrompt = `${systemPrompt}\n\n${capabilityPrompt}`
+      console.log('🎯 [CAPABILITY] Added prompt for:', capabilityCheck.capability)
+    }
+
+    console.log('📝 [DEBUG] System prompt length:', systemPrompt.length, 'chars')
+
+    // Build conversation messages for Claude
     const messages: Anthropic.MessageParam[] = []
     
-    // Ajouter l'historique si présent
+    // Add conversation history
     if (conversationHistory && Array.isArray(conversationHistory)) {
       conversationHistory.forEach((msg: { text: string; isUser: boolean }) => {
         messages.push({
@@ -52,78 +142,42 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // Ajouter le nouveau message utilisateur
+    // Add the new user message
     messages.push({
       role: 'user',
       content: message
     })
 
-    console.log('📤 [API] Envoi à Claude avec', messages.length, 'messages')
+    console.log('📤 [API] Sending to Claude with', messages.length, 'messages')
 
-    // Construire le system prompt selon le mode
-    let systemPrompt: string
-    let usedFallback = false
-    
-    if (useWorkflow) {
-      // Mode workflow: utiliser base prompt + stage prompt
-      const sessionId = providedSessionId || generateSessionId(conversationHistory)
-      const conversationState = getConversationState(sessionId)
-      
-      console.log('🔄 [WORKFLOW] Session:', sessionId)
-      console.log('🔄 [WORKFLOW] Current stage:', conversationState.currentStage)
-      console.log('🔄 [WORKFLOW] Completed stages:', conversationState.completedStages.join(', '))
-      
-      // Load prompts (async - tries Notion first, falls back to hardcoded)
-      const basePrompt = await getBaseSystemPrompt(useCache)
-      const stagePromptResult = await getStagePrompt(conversationState, useCache)
-      
-      systemPrompt = `${basePrompt}\n\n---\n\n${stagePromptResult.prompt}`
-      usedFallback = stagePromptResult.usedFallback
-      
-      console.log('📝 [DEBUG] Using workflow-based system prompt')
-      console.log('📝 [DEBUG] Stage:', conversationState.currentStage)
-      console.log('📝 [DEBUG] Used fallback:', usedFallback)
-    } else if (useCache) {
-      // Mode legacy avec cache
-      const { getWorkflowPrompt } = await import('../utils/systemPrompt')
-      systemPrompt = getWorkflowPrompt()
-      console.log('📝 [DEBUG] Using hardcoded system prompt from system-prompt.md')
-    }
-    
-    console.log('📝 [DEBUG] System prompt type:', typeof systemPrompt)
-    console.log('📝 [DEBUG] System prompt length:', systemPrompt.length, 'chars')
-    console.log('📝 [DEBUG] System prompt preview:', systemPrompt.substring(0, 100))
-
-    // Créer le stream avec Claude - Utilisation du modèle correct  
+    // Create stream with Claude
     const stream = await client.messages.stream({
-      model: 'claude-3-5-haiku-20241022',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 4096,
-      temperature: 0.0,
+      temperature: 0.7,
       system: systemPrompt,
       messages: messages
     })
 
-    console.log('✅ [API] Stream créé avec succès, début du streaming...')
+    console.log('✅ [API] Stream created, starting streaming...')
 
-    // Configurer la réponse pour le streaming
+    // Set up response headers for SSE
     setResponseHeaders(event, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive'
     })
 
-    // Créer un stream de réponse
+    // Create response stream
     const encoder = new TextEncoder()
     let chunkCount = 0
-    let fullResponse = '' // Accumuler la réponse pour le parsing
+    let fullResponse = ''
     
     const readableStream = new ReadableStream({
       async start(controller) {
         try {
-          // Send metadata at the start if using fallback
-          if (usedFallback) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ metadata: { usedFallback: true } })}\n\n`))
-          }
+          // Send session ID at the start
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ metadata: { sessionId } })}\n\n`))
           
           for await (const chunk of stream) {
             if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
@@ -131,32 +185,108 @@ export default defineEventHandler(async (event) => {
               fullResponse += text
               chunkCount++
               if (chunkCount === 1) {
-                console.log('🟢 [API] Premier chunk reçu de Claude!')
+                console.log('🟢 [API] First chunk received from Claude!')
               }
-              // Envoyer le texte en format SSE
+              // Send text in SSE format
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`))
             }
           }
-          console.log('✅ [API] Streaming terminé -', chunkCount, 'chunks envoyés')
+          console.log('✅ [API] Streaming complete -', chunkCount, 'chunks sent')
           
-          // Post-traitement: mettre à jour l'état de la conversation si en mode workflow
-          if (useWorkflow) {
-            const sessionId = providedSessionId || generateSessionId(conversationHistory)
-            const conversationState = getConversationState(sessionId)
-            
-            // Parser la réponse pour extraire les données structurées
-            const extractedData = parseAssistantResponse(fullResponse, conversationState.currentStage)
-            
-            // Mettre à jour l'état de la conversation
-            const updatedState = updateConversationState(conversationState, extractedData)
-            setConversationState(sessionId, updatedState)
-            
-            console.log('🔄 [WORKFLOW] State updated')
-            console.log('🔄 [WORKFLOW] New stage:', updatedState.currentStage)
-            console.log('🔄 [WORKFLOW] Extracted data:', JSON.stringify(extractedData, null, 2))
+          // Post-process: update session state from response
+          const { cleanResponse, memoryUpdated, backlogUpdated } = await processResponse(sessionId, fullResponse, projectId, topicId, event)
+          
+          if (memoryUpdated) {
+            console.log('🧠 [SESSION] Memory updated from response')
+          }
+          if (backlogUpdated) {
+            console.log('📝 [SESSION] Question backlog updated')
+          }
+
+          // Save assistant response to Supabase
+          if (conversationId && fullResponse) {
+            try {
+              const { error: assistantMessageError } = await supabase
+                .from('messages')
+                .insert({
+                  conversation_id: conversationId,
+                  content: fullResponse,
+                  role: 'assistant'
+                } as any)
+
+              if (assistantMessageError) {
+                console.error('❌ [SUPABASE] Error saving assistant message:', assistantMessageError)
+              } else {
+                console.log('💾 [SUPABASE] Saved assistant message')
+              }
+            } catch (supabaseError) {
+              console.error('❌ [SUPABASE] Error saving assistant message:', supabaseError)
+            }
+          }
+
+          // Create challenge if a capability was triggered (action plan or diagnostic)
+          if (capabilityCheck.capability && fullResponse && topicId) {
+            try {
+              // Check if this is an action plan or diagnostic capability
+              const isActionPlan = capabilityCheck.capability === 'action_plan'
+              const isDiagnostic = capabilityCheck.capability === 'flash_diagnostic'
+
+              if (isActionPlan || isDiagnostic) {
+                // Extract title from response (look for markdown headers first)
+                let title = ''
+                const h2Match = fullResponse.match(/^##\s+(.+)$/m)
+                const h1Match = fullResponse.match(/^#\s+(.+)$/m)
+                
+                if (h2Match) {
+                  title = h2Match[1].trim()
+                } else if (h1Match) {
+                  title = h1Match[1].trim()
+                } else {
+                  // Fallback: use first non-empty line or default title
+                  const firstLine = fullResponse.split('\n').find(line => line.trim().length > 0 && !line.trim().startsWith('<'))
+                  title = firstLine ? firstLine.trim().substring(0, 100) : 
+                    (isActionPlan ? 'Action Plan' : 'Flash Diagnostic')
+                }
+
+                // Calculate expiration date (7 days from now)
+                const expiresAt = new Date()
+                expiresAt.setDate(expiresAt.getDate() + 7)
+
+                console.log('📄 [CHALLENGES] Creating document:', {
+                  type: isActionPlan ? 'action_plan' : 'flash_diagnostic',
+                  title: title.substring(0, 50),
+                  topicId
+                })
+
+                // Create challenge directly using Supabase
+                const { data: newChallenge, error: challengeError } = await supabase
+                  .from('challenges')
+                  .insert({
+                    topic_id: topicId,
+                    project_id: projectId || null,
+                    document_type: isActionPlan ? 'action_plan' : 'flash_diagnostic',
+                    title,
+                    content: fullResponse,
+                    expires_at: expiresAt.toISOString()
+                  } as any)
+                  .select()
+                  .single() as { data: any; error: any }
+
+                if (challengeError) {
+                  console.error('❌ [CHALLENGES] Failed to create challenge:', challengeError)
+                } else {
+                  console.log('✅ [CHALLENGES] Created challenge:', newChallenge?.id)
+                  // Trigger refresh event for DocumentsPanel
+                  // Note: This will be picked up by the auto-refresh mechanism
+                }
+              }
+            } catch (challengeError) {
+              // Don't fail the request if challenge creation fails
+              console.error('❌ [CHALLENGES] Error creating challenge:', challengeError)
+            }
           }
           
-          // Envoyer le signal de fin
+          // Send done signal
           controller.enqueue(encoder.encode('data: [DONE]\n\n'))
           controller.close()
         } catch (error) {
@@ -177,4 +307,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-

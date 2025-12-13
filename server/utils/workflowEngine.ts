@@ -26,7 +26,7 @@ import {
  */
 export function initializeConversationState(): ConversationState {
   return {
-    currentStage: 'intent_understanding',
+    currentStage: 'project_understanding', 
     completedStages: []
   }
 }

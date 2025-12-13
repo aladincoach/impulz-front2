@@ -5,12 +5,84 @@
     "welcomeMessage": "Comment puis-je vous aider aujourd'hui ?",
     "inputPlaceholder": "Écrivez votre message...",
     "send": "Envoyer",
-    "fallbackWarning": "En raison d'un problème de connexion à la base de prompts, le système est basé sur une version antérieure"
+    "fallbackWarning": "En raison d'un problème de connexion à la base de prompts, le système est basé sur une version antérieure",
+    "topicChangeTitle": "Passer à un nouveau sujet ?",
+    "topicChangeMessage": "Votre conversation actuelle concerne un sujet différent. Souhaitez-vous démarrer un nouveau fil de discussion ?",
+    "startNewTopic": "Démarrer un nouveau sujet"
+  },
+  "projects": {
+    "title": "Projets",
+    "loading": "Chargement...",
+    "add": "Ajouter un projet",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "name": "Nom du projet",
+    "defaultName": "Nouveau projet",
+    "deleteConfirm": "Supprimer le projet \"{name}\" ? Cela supprimera tous les sujets et conversations de ce projet."
+  },
+  "topics": {
+    "add": "Ajouter un sujet",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "name": "Nom du sujet",
+    "defaultName": "Nouveau sujet",
+    "deleteConfirm": "Supprimer le sujet \"{name}\" ? Cela supprimera toutes les conversations de ce sujet."
   },
   "common": {
     "loading": "Chargement...",
     "error": "Une erreur s'est produite",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "cancel": "Annuler",
+    "save": "Enregistrer"
+  },
+  "messageBubble": {
+    "thinking": "Réflexion",
+    "myNextQuestions": "Mes prochaines questions",
+    "question": "question",
+    "questions": "questions",
+    "newQuestion": "Nouvelle question",
+    "addQuestion": "Ajouter une question",
+    "editQuestion": "Modifier la question",
+    "deleteQuestion": "Supprimer la question",
+    "completedQuestions": "Terminées"
+  },
+  "documents": {
+    "title": "Documents",
+    "loading": "Chargement...",
+    "empty": "Aucun document pour le moment",
+    "type": "Type",
+    "expires": "Expire le",
+    "expired": "Expiré",
+    "validated": "Validé",
+    "validate": "Valider le défi",
+    "validating": "Validation...",
+    "validationError": "Échec de la validation du défi. Veuillez réessayer.",
+    "projectInfo": "Informations du projet",
+    "known": "Connu",
+    "unknown": "Inconnu",
+    "noProjectInfo": "Aucune information sur le projet disponible pour le moment",
+    "types": {
+      "actionPlan": "Plan d'action",
+      "diagnostic": "Diagnostic",
+      "other": "Autre"
+    },
+    "fields": {
+      "projectName": "Nom du projet",
+      "description": "Description",
+      "phase": "Phase",
+      "targetSegment": "Segment cible",
+      "problem": "Problème",
+      "solution": "Solution",
+      "marketCategory": "Catégorie de marché",
+      "activities": "Activités",
+      "milestones": "Jalons",
+      "skills": "Compétences",
+      "assets": "Atouts",
+      "timeConstraint": "Temps disponible",
+      "budget": "Budget",
+      "geography": "Géographie",
+      "lacking": "Manque"
+    }
   }
 }
 
