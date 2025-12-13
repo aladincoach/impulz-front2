@@ -153,42 +153,32 @@ function buildDiagnosticContent(
   const projectName = memory.project.name || 'Your project'
   const description = memory.project.description || 'your project idea'
   
-  return `🎯 DIAGNOSTIC FLASH DE TON PROJET: ${projectName}
+  return `## 🔍 DIAGNOSTIC FLASH - ${projectName}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+### 📋 Résumé du projet
 
-📋 RÉSUMÉ DU PROJET
+${description}
+${memory.project.features?.length ? `\n**Fonctionnalités clés**: ${memory.project.features.join(', ')}` : ''}
 
-   ${description}
-${memory.project.features?.length ? `\n   🔧 Fonctionnalités clés: ${memory.project.features.join(', ')}` : ''}
+### 🚀 Phase actuelle: ${getPhaseEmoji(phase)} ${phase.toUpperCase()}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${getPhaseDescription(phase)}
 
-🚀 PHASE ACTUELLE: ${getPhaseEmoji(phase)} ${phase.toUpperCase()}
+### ✅ Points forts
 
-   ${getPhaseDescription(phase)}
+${strengths.map(s => `- ${formatStrengthOrGap(s)}`).join('\n')}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+### ⚠️ Points d'attention
 
-✅ TES FORCES IDENTIFIÉES
+${gaps.map(g => `- ${formatStrengthOrGap(g)}`).join('\n')}
 
-${strengths.map(s => `   • ${s}`).join('\n')}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-⚠️  POINTS D'ATTENTION & RISQUES
-
-${gaps.map(g => `   • ${g}`).join('\n')}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🎯 TOP 3 RECOMMANDATIONS
+### 🎯 Priorités immédiates
 
 ${getPhaseRecommendations(phase, gaps)}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+---
 
-💬 Ceci est un diagnostic flash basé sur notre conversation. Tu veux aller plus loin ?`
+💬 *Ceci est un diagnostic flash basé sur notre conversation. Tu veux aller plus loin ?*`
 }
 
 function getPhaseEmoji(phase: string): string {
@@ -217,34 +207,71 @@ function getPhaseRecommendations(phase: string, gaps: string[]): string {
   // Phase-specific recommendations
   switch (phase) {
     case 'idée':
-      recommendations.push('   1. 🎤 Valider le problème: Parle à 10 clients potentiels cette semaine. Concentre-toi sur comprendre leur douleur, pas sur présenter ta solution.')
+      recommendations.push('- **Valider le problème**: Parle à 10 clients potentiels cette semaine. Concentre-toi sur comprendre leur douleur, pas sur présenter ta solution.')
       if (gaps.some(g => g.includes('Technical'))) {
-        recommendations.push('   2. 🤝 Trouver un co-fondateur technique ou partenaire: Ton idée a besoin d\'exécution. Explore des communautés comme CoFoundersLab ou Antler.')
+        recommendations.push('- **Trouver un co-fondateur technique**: Ton idée a besoin d\'exécution. Explore des communautés comme CoFoundersLab ou Antler.')
       } else {
-        recommendations.push('   2. 🎯 Définir ton micro-marché: Choisis UN segment de clientèle spécifique pour tester en premier.')
+        recommendations.push('- **Définir ton micro-marché**: Choisis UN segment de clientèle spécifique pour tester en premier.')
       }
-      recommendations.push('   3. 💰 Pré-vendre avant de construire: Essaie d\'obtenir 3 early adopters payants avant d\'écrire du code.')
+      recommendations.push('- **Pré-vendre avant de construire**: Essaie d\'obtenir 3 early adopters payants avant d\'écrire du code.')
       break
       
     case 'MVP':
-      recommendations.push('   1. 🚢 Livrer dans 2 semaines: Ce que tu as, mets-le devant les utilisateurs. Le parfait est l\'ennemi du bien.')
-      recommendations.push('   2. 🔄 Mettre en place des boucles de feedback: Crée un moyen simple pour les utilisateurs de partager leurs retours (canal Slack, Typeform, appels directs).')
-      recommendations.push('   3. ⭐ Définir ta métrique North Star: Quel est le UN chiffre qui te dit si tu réussis ?')
+      recommendations.push('- **Livrer dans 2 semaines**: Ce que tu as, mets-le devant les utilisateurs. Le parfait est l\'ennemi du bien.')
+      recommendations.push('- **Mettre en place des boucles de feedback**: Crée un moyen simple pour les utilisateurs de partager leurs retours (canal Slack, Typeform, appels directs).')
+      recommendations.push('- **Définir ta métrique North Star**: Quel est le UN chiffre qui te dit si tu réussis ?')
       break
       
     case 'traction':
-      recommendations.push('   1. 📊 Doubler sur ce qui fonctionne: Identifie ton meilleur canal d\'acquisition et concentre 80% de tes efforts là-dessus.')
-      recommendations.push('   2. 🔒 Améliorer la rétention: Analyse pourquoi les utilisateurs partent et corrige les 3 principales raisons.')
-      recommendations.push('   3. 📝 Documenter tes processus: Commence à construire des systèmes pour ce que tu fais de manière répétée.')
+      recommendations.push('- **Doubler sur ce qui fonctionne**: Identifie ton meilleur canal d\'acquisition et concentre 80% de tes efforts là-dessus.')
+      recommendations.push('- **Améliorer la rétention**: Analyse pourquoi les utilisateurs partent et corrige les 3 principales raisons.')
+      recommendations.push('- **Documenter tes processus**: Commence à construire des systèmes pour ce que tu fais de manière répétée.')
       break
       
     case 'scale':
-      recommendations.push('   1. 👥 Construire l\'équipe: Ton prochain recrutement devrait te libérer des tâches opérationnelles.')
-      recommendations.push('   2. 🔄 Systématiser la croissance: Transforme tes meilleures pratiques en playbooks répétables.')
-      recommendations.push('   3. 💎 Considérer le financement stratégiquement: Ne lève des fonds que si cela accélère un modèle éprouvé.')
+      recommendations.push('- **Construire l\'équipe**: Ton prochain recrutement devrait te libérer des tâches opérationnelles.')
+      recommendations.push('- **Systématiser la croissance**: Transforme tes meilleures pratiques en playbooks répétables.')
+      recommendations.push('- **Considérer le financement stratégiquement**: Ne lève des fonds que si cela accélère un modèle éprouvé.')
       break
   }
   
   return recommendations.join('\n')
+}
+
+function formatStrengthOrGap(text: string): string {
+  // Extract emoji and text
+  const emojiMatch = text.match(/^([🎓💼🎤🔍💡💪💻⏰💰📊💵👤❓🔴✨]+)\s*(.+)$/)
+  if (emojiMatch) {
+    const emoji = emojiMatch[1]
+    const content = emojiMatch[2]
+    
+    // Try to extract a label (text before colon) and description
+    const colonIndex = content.indexOf(':')
+    if (colonIndex > 0) {
+      const label = content.substring(0, colonIndex).trim()
+      const description = content.substring(colonIndex + 1).trim()
+      return `${emoji} **${label}**: ${description}`
+    }
+    
+    // If no colon, try to extract first few words as label
+    const words = content.split(' ')
+    if (words.length > 2) {
+      const label = words.slice(0, 2).join(' ')
+      const description = words.slice(2).join(' ')
+      return `${emoji} **${label}**: ${description}`
+    }
+    
+    return `${emoji} ${content}`
+  }
+  
+  // If no emoji, try to format as label: description
+  const colonIndex = text.indexOf(':')
+  if (colonIndex > 0) {
+    const label = text.substring(0, colonIndex).trim()
+    const description = text.substring(colonIndex + 1).trim()
+    return `**${label}**: ${description}`
+  }
+  
+  return text
 }
 

@@ -11,7 +11,7 @@
       <template v-else>
         <div v-for="(part, index) in parsedContent" :key="index">
           <template v-if="part.type === 'text'">
-            <span class="whitespace-pre-wrap">{{ part.content }}</span>
+            <div class="markdown-content" v-html="renderMarkdown(part.content || '')"></div>
           </template>
           <template v-else-if="part.type === 'thinking'">
             <details class="border-l-2 border-gray-300 pl-3">
@@ -79,6 +79,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { marked } from 'marked'
 
 interface Message {
   id: string
@@ -123,6 +124,11 @@ const bubbleClass = computed(() => {
 const handleOptionClick = (option: string, index: number) => {
   selectedOptionIndex.value = index
   emit('optionClick', option)
+}
+
+const renderMarkdown = (text: string): string => {
+  if (!text) return ''
+  return marked.parse(text, { breaks: true }) as string
 }
 
 const parsedContent = computed(() => {
@@ -286,4 +292,78 @@ const parsedContent = computed(() => {
   return parts
 })
 </script>
+
+<style scoped>
+.markdown-content :deep(h1),
+.markdown-content :deep(h2),
+.markdown-content :deep(h3),
+.markdown-content :deep(h4),
+.markdown-content :deep(h5),
+.markdown-content :deep(h6) {
+  font-weight: 600;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  line-height: 1.25;
+}
+
+.markdown-content :deep(h1) {
+  font-size: 1.5em;
+}
+
+.markdown-content :deep(h2) {
+  font-size: 1.3em;
+}
+
+.markdown-content :deep(h3) {
+  font-size: 1.1em;
+}
+
+.markdown-content :deep(p) {
+  margin-bottom: 0.75em;
+}
+
+.markdown-content :deep(ul),
+.markdown-content :deep(ol) {
+  margin: 0.75em 0;
+  padding-left: 1.5em;
+}
+
+.markdown-content :deep(li) {
+  margin: 0.25em 0;
+}
+
+.markdown-content :deep(strong) {
+  font-weight: 600;
+}
+
+.markdown-content :deep(em) {
+  font-style: italic;
+}
+
+.markdown-content :deep(hr) {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 1em 0;
+}
+
+.markdown-content :deep(code) {
+  background-color: #f3f4f6;
+  padding: 0.125em 0.25em;
+  border-radius: 0.25em;
+  font-size: 0.9em;
+}
+
+.markdown-content :deep(pre) {
+  background-color: #f3f4f6;
+  padding: 1em;
+  border-radius: 0.5em;
+  overflow-x: auto;
+  margin: 0.75em 0;
+}
+
+.markdown-content :deep(pre code) {
+  background-color: transparent;
+  padding: 0;
+}
+</style>
 
