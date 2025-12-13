@@ -58,6 +58,19 @@
               </button>
             </div>
           </template>
+          <template v-else-if="part.type === 'backlog'">
+            <details class="mt-3 border-l-2 border-blue-300 pl-3">
+              <summary class="cursor-pointer text-sm text-blue-600 font-medium select-none hover:text-blue-800">
+                📋 Coming up next ({{ part.questions?.length || 0 }} questions)
+              </summary>
+              <ul class="text-sm text-gray-600 mt-2 space-y-1">
+                <li v-for="(question, qIndex) in part.questions" :key="qIndex" class="flex items-start gap-2">
+                  <span class="text-blue-400">→</span>
+                  <span>{{ question }}</span>
+                </li>
+              </ul>
+            </details>
+          </template>
         </div>
       </template>
     </div>
@@ -75,9 +88,10 @@ interface Message {
 }
 
 interface ContentPart {
-  type: 'text' | 'thinking' | 'options'
+  type: 'text' | 'thinking' | 'options' | 'backlog'
   content?: string
   options?: string[]
+  questions?: string[]
 }
 
 const props = defineProps<{
@@ -113,13 +127,19 @@ const handleOptionClick = (option: string, index: number) => {
 
 const parsedContent = computed(() => {
   const parts: ContentPart[] = []
-  const text = props.message.text
+  let text = props.message.text
+  
+  // Remove memory_update tags completely (they should be hidden)
+  text = text.replace(/<memory_update>[\s\S]*?<\/memory_update>/g, '')
   
   // Regex to match <thinking>...</thinking> tags (including incomplete ones during streaming)
   const thinkingRegex = /<thinking>([\s\S]*?)(?:<\/thinking>|$)/g
   
+  // Regex to match <question_backlog>...</question_backlog> tags
+  const backlogRegex = /<question_backlog>([\s\S]*?)(?:<\/question_backlog>|$)/g
+  
   let lastIndex = 0
-  const matches: Array<{ index: number; length: number; type: 'thinking' | 'options'; data: any }> = []
+  const matches: Array<{ index: number; length: number; type: 'thinking' | 'options' | 'backlog'; data: any }> = []
   
   // Find all thinking blocks
   let match
@@ -130,6 +150,24 @@ const parsedContent = computed(() => {
       type: 'thinking',
       data: match[1]
     })
+  }
+  
+  // Find all question backlog blocks
+  while ((match = backlogRegex.exec(text)) !== null) {
+    try {
+      const questions = JSON.parse(match[1])
+      if (Array.isArray(questions) && questions.length > 0) {
+        matches.push({
+          index: match.index,
+          length: match[0].length,
+          type: 'backlog',
+          data: questions
+        })
+      }
+    } catch (e) {
+      // If JSON parse fails, skip this block
+      console.warn('Failed to parse question backlog:', e)
+    }
   }
   
   // Find all ordered lists (numbered lines starting with "1. ")
@@ -219,6 +257,8 @@ const parsedContent = computed(() => {
       parts.push({ type: 'thinking', content: match.data })
     } else if (match.type === 'options') {
       parts.push({ type: 'options', options: match.data })
+    } else if (match.type === 'backlog') {
+      parts.push({ type: 'backlog', questions: match.data })
     }
     
     lastIndex = match.index + match.length

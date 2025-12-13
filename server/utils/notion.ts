@@ -236,6 +236,182 @@ export async function getStagePromptFromNotion(
  */
 export function clearNotionCache(): void {
   promptCaches.clear()
+  knowledgeBaseCache = null
   console.log('🔄 [NOTION] All caches cleared')
+}
+
+// ============================================
+// KNOWLEDGE BASE (Coaching Recommendations)
+// ============================================
+
+export interface KnowledgeEntry {
+  id: string
+  titre: string
+  thematique: string
+  contexte_narratif: string
+  question_posee: string
+  variantes_questions: string
+  probleme_sous_jacent: string
+  recommandation_impulz: string
+  punchline: string
+  histoire_vraie: string
+  persona: string[]
+  maturite: string[]  // 'idée', 'MVP', 'traction', 'scale'
+  challenge_utilisateur: string
+  temps_action: number | null
+}
+
+interface KnowledgeBaseCache {
+  entries: KnowledgeEntry[]
+  timestamp: number
+}
+
+let knowledgeBaseCache: KnowledgeBaseCache | null = null
+
+/**
+ * Extract text from Notion rich text array
+ */
+function extractRichText(richText: any[]): string {
+  if (!richText || !Array.isArray(richText)) return ''
+  return richText.map(t => t.plain_text || '').join('')
+}
+
+/**
+ * Extract multi-select values from Notion property
+ */
+function extractMultiSelect(multiSelect: any[]): string[] {
+  if (!multiSelect || !Array.isArray(multiSelect)) return []
+  return multiSelect.map(item => item.name || '')
+}
+
+/**
+ * Extract select value from Notion property
+ */
+function extractSelect(select: any): string {
+  return select?.name || ''
+}
+
+/**
+ * Extract number from Notion property
+ */
+function extractNumber(num: any): number | null {
+  return typeof num === 'number' ? num : null
+}
+
+/**
+ * Convert a Notion database row to KnowledgeEntry
+ */
+function notionRowToKnowledgeEntry(row: any): KnowledgeEntry {
+  const props = row.properties
+  
+  return {
+    id: row.id,
+    titre: extractRichText(props['Titre']?.title) || '',
+    thematique: extractSelect(props['Thématique']?.select) || extractRichText(props['Thématique']?.rich_text) || '',
+    contexte_narratif: extractRichText(props['Contexte narratif']?.rich_text) || '',
+    question_posee: extractRichText(props['Question posée']?.rich_text) || '',
+    variantes_questions: extractRichText(props['variantes questions']?.rich_text) || '',
+    probleme_sous_jacent: extractRichText(props['Problème sous-jacent']?.rich_text) || '',
+    recommandation_impulz: extractRichText(props['Recommandation boostée Impulz']?.rich_text) || '',
+    punchline: extractRichText(props['Punchline']?.rich_text) || '',
+    histoire_vraie: extractRichText(props['Histoire vraie']?.rich_text) || '',
+    persona: extractMultiSelect(props['Persona']?.multi_select) || [],
+    maturite: extractMultiSelect(props['Maturité']?.multi_select) || [],
+    challenge_utilisateur: extractRichText(props['Challenge utilisateur (actions prioritaires)']?.rich_text) || '',
+    temps_action: extractNumber(props['Temps d\'action (jours)']?.number)
+  }
+}
+
+/**
+ * Fetch knowledge base from Notion database
+ */
+export async function getKnowledgeBase(useCache: boolean = true): Promise<KnowledgeEntry[]> {
+  const apiKey = process.env.NOTION_API_KEY
+  const databaseId = process.env.NOTION_KNOWLEDGE_BASE
+  
+  if (!apiKey || !databaseId) {
+    console.warn('⚠️ [NOTION] NOTION_API_KEY or NOTION_KNOWLEDGE_BASE not configured')
+    return []
+  }
+  
+  // Check cache
+  const now = Date.now()
+  const cacheDuration = getCacheDuration()
+  
+  if (useCache && knowledgeBaseCache && (now - knowledgeBaseCache.timestamp) < cacheDuration) {
+    const ageSeconds = Math.round((now - knowledgeBaseCache.timestamp) / 1000)
+    console.log(`✅ [NOTION] Using cached knowledge base (${knowledgeBaseCache.entries.length} entries, age: ${ageSeconds}s)`)
+    return knowledgeBaseCache.entries
+  }
+  
+  // Fetch from Notion
+  console.log('🔄 [NOTION] Fetching knowledge base from Notion...')
+  const notion = new Client({ auth: apiKey })
+  
+  try {
+    const entries: KnowledgeEntry[] = []
+    let hasMore = true
+    let startCursor: string | undefined = undefined
+    
+    while (hasMore) {
+      // @ts-ignore - Notion SDK types may be incomplete
+      const response = await notion.databases.query({
+        database_id: databaseId,
+        start_cursor: startCursor,
+        page_size: 100
+      }) as any
+      
+      for (const row of response.results) {
+        const entry = notionRowToKnowledgeEntry(row)
+        // Only include entries with valid recommendations
+        if (entry.recommandation_impulz || entry.punchline) {
+          entries.push(entry)
+        }
+      }
+      
+      hasMore = response.has_more
+      startCursor = response.next_cursor
+    }
+    
+    console.log(`✅ [NOTION] Loaded ${entries.length} knowledge base entries`)
+    
+    // Cache the results
+    if (useCache) {
+      knowledgeBaseCache = { entries, timestamp: now }
+    }
+    
+    return entries
+  } catch (error: any) {
+    console.error('❌ [NOTION] Error fetching knowledge base:', error.message)
+    return knowledgeBaseCache?.entries || []
+  }
+}
+
+/**
+ * Format a knowledge entry for display in chat
+ */
+export function formatKnowledgeEntry(entry: KnowledgeEntry): string {
+  const parts: string[] = []
+  
+  if (entry.punchline) {
+    parts.push(`**${entry.punchline}**`)
+  }
+  
+  if (entry.recommandation_impulz) {
+    parts.push(entry.recommandation_impulz)
+  }
+  
+  if (entry.histoire_vraie) {
+    parts.push(`\n**Exemple réel:** ${entry.histoire_vraie}`)
+  }
+  
+  if (entry.challenge_utilisateur) {
+    parts.push(`\n**Ton challenge:**\n${entry.challenge_utilisateur}`)
+    if (entry.temps_action) {
+      parts.push(`\n*Temps estimé: ${entry.temps_action} jour(s)*`)
+    }
+  }
+  
+  return parts.join('\n\n')
 }
 

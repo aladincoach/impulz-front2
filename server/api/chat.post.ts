@@ -1,21 +1,20 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { getBaseSystemPrompt } from '../utils/basePrompt'
 import { 
-  getConversationState, 
-  setConversationState, 
-  generateSessionId 
-} from '../utils/conversationStateManager'
-import { 
-  getStagePrompt, 
-  updateConversationState, 
-  parseAssistantResponse 
-} from '../utils/workflowEngine'
+  getSession, 
+  generateSessionId,
+  parseMemoryUpdates,
+  parseQuestionBacklog,
+  updateMemory,
+  updateQuestionBacklog
+} from '../utils/memory'
+import { buildSystemPrompt, shouldTriggerCapability, processResponse } from '../utils/reasoningEngine'
+import { getCapabilityPrompt } from '../utils/capabilities'
 
 export default defineEventHandler(async (event) => {
   const { message, conversationHistory, sessionId: providedSessionId } = await readBody(event)
 
-  console.log('🔵 [API] Message reçu:', message)
-  console.log('🔵 [API] Historique:', conversationHistory?.length || 0, 'messages')
+  console.log('🔵 [API] Message received:', message)
+  console.log('🔵 [API] History:', conversationHistory?.length || 0, 'messages')
 
   if (!message) {
     throw createError({
@@ -25,24 +24,45 @@ export default defineEventHandler(async (event) => {
   }
 
   const config = useRuntimeConfig(event)
-  const useWorkflow = config.public?.useWorkflow !== false // Default to true
   const useCache = config.systemPromptCache
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return { statusCode: 500, body: 'Missing ANTHROPIC_API_KEY' }
 
-  console.log('✅ [API] API Key présente (length:', apiKey.length, ')')
-  console.log('⚙️  [CONFIG] Workflow mode:', useWorkflow ? 'activé (stage-based)' : 'désactivé (monolithic)')
-  console.log('⚙️  [CONFIG] Cache system prompt:', useCache ? 'activé (hardcoded)' : 'désactivé (from Notion)')
+  console.log('✅ [API] API Key present (length:', apiKey.length, ')')
 
   const client = new Anthropic({
     apiKey: apiKey
   })
 
   try {
-    // Construire l'historique de conversation pour Claude
+    // Get or create session
+    const sessionId = providedSessionId || generateSessionId(conversationHistory)
+    const session = getSession(sessionId)
+    
+    console.log('🔄 [SESSION] ID:', sessionId)
+    console.log('🔄 [SESSION] Memory:', JSON.stringify(session.memory.project, null, 2))
+    console.log('🔄 [SESSION] Questions pending:', session.questions.filter(q => q.status === 'pending').length)
+
+    // Check if a capability should be triggered
+    const capabilityCheck = shouldTriggerCapability(sessionId, message)
+    console.log('🎯 [CAPABILITY]', capabilityCheck.reason)
+
+    // Build system prompt
+    let systemPrompt = await buildSystemPrompt(sessionId, useCache)
+    
+    // Add capability-specific instructions if triggered
+    if (capabilityCheck.capability) {
+      const capabilityPrompt = getCapabilityPrompt(capabilityCheck.capability, session.memory)
+      systemPrompt = `${systemPrompt}\n\n${capabilityPrompt}`
+      console.log('🎯 [CAPABILITY] Added prompt for:', capabilityCheck.capability)
+    }
+
+    console.log('📝 [DEBUG] System prompt length:', systemPrompt.length, 'chars')
+
+    // Build conversation messages for Claude
     const messages: Anthropic.MessageParam[] = []
     
-    // Ajouter l'historique si présent
+    // Add conversation history
     if (conversationHistory && Array.isArray(conversationHistory)) {
       conversationHistory.forEach((msg: { text: string; isUser: boolean }) => {
         messages.push({
@@ -52,78 +72,42 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // Ajouter le nouveau message utilisateur
+    // Add the new user message
     messages.push({
       role: 'user',
       content: message
     })
 
-    console.log('📤 [API] Envoi à Claude avec', messages.length, 'messages')
+    console.log('📤 [API] Sending to Claude with', messages.length, 'messages')
 
-    // Construire le system prompt selon le mode
-    let systemPrompt: string
-    let usedFallback = false
-    
-    if (useWorkflow) {
-      // Mode workflow: utiliser base prompt + stage prompt
-      const sessionId = providedSessionId || generateSessionId(conversationHistory)
-      const conversationState = getConversationState(sessionId)
-      
-      console.log('🔄 [WORKFLOW] Session:', sessionId)
-      console.log('🔄 [WORKFLOW] Current stage:', conversationState.currentStage)
-      console.log('🔄 [WORKFLOW] Completed stages:', conversationState.completedStages.join(', '))
-      
-      // Load prompts (async - tries Notion first, falls back to hardcoded)
-      const basePrompt = await getBaseSystemPrompt(useCache)
-      const stagePromptResult = await getStagePrompt(conversationState, useCache)
-      
-      systemPrompt = `${basePrompt}\n\n---\n\n${stagePromptResult.prompt}`
-      usedFallback = stagePromptResult.usedFallback
-      
-      console.log('📝 [DEBUG] Using workflow-based system prompt')
-      console.log('📝 [DEBUG] Stage:', conversationState.currentStage)
-      console.log('📝 [DEBUG] Used fallback:', usedFallback)
-    } else if (useCache) {
-      // Mode legacy avec cache
-      const { getWorkflowPrompt } = await import('../utils/systemPrompt')
-      systemPrompt = getWorkflowPrompt()
-      console.log('📝 [DEBUG] Using hardcoded system prompt from system-prompt.md')
-    }
-    
-    console.log('📝 [DEBUG] System prompt type:', typeof systemPrompt)
-    console.log('📝 [DEBUG] System prompt length:', systemPrompt.length, 'chars')
-    console.log('📝 [DEBUG] System prompt preview:', systemPrompt)
-
-    // Créer le stream avec Claude - Utilisation du modèle correct  
+    // Create stream with Claude
     const stream = await client.messages.stream({
-      model: 'claude-3-5-haiku-20241022',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 4096,
-      temperature: 0.0,
+      temperature: 0.7,
       system: systemPrompt,
       messages: messages
     })
 
-    console.log('✅ [API] Stream créé avec succès, début du streaming...')
+    console.log('✅ [API] Stream created, starting streaming...')
 
-    // Configurer la réponse pour le streaming
+    // Set up response headers for SSE
     setResponseHeaders(event, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive'
     })
 
-    // Créer un stream de réponse
+    // Create response stream
     const encoder = new TextEncoder()
     let chunkCount = 0
-    let fullResponse = '' // Accumuler la réponse pour le parsing
+    let fullResponse = ''
     
     const readableStream = new ReadableStream({
       async start(controller) {
         try {
-          // Send metadata at the start if using fallback
-          if (usedFallback) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ metadata: { usedFallback: true } })}\n\n`))
-          }
+          // Send session ID at the start
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ metadata: { sessionId } })}\n\n`))
           
           for await (const chunk of stream) {
             if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
@@ -131,32 +115,25 @@ export default defineEventHandler(async (event) => {
               fullResponse += text
               chunkCount++
               if (chunkCount === 1) {
-                console.log('🟢 [API] Premier chunk reçu de Claude!')
+                console.log('🟢 [API] First chunk received from Claude!')
               }
-              // Envoyer le texte en format SSE
+              // Send text in SSE format
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`))
             }
           }
-          console.log('✅ [API] Streaming terminé -', chunkCount, 'chunks envoyés')
+          console.log('✅ [API] Streaming complete -', chunkCount, 'chunks sent')
           
-          // Post-traitement: mettre à jour l'état de la conversation si en mode workflow
-          if (useWorkflow) {
-            const sessionId = providedSessionId || generateSessionId(conversationHistory)
-            const conversationState = getConversationState(sessionId)
-            
-            // Parser la réponse pour extraire les données structurées
-            const extractedData = parseAssistantResponse(fullResponse, conversationState.currentStage)
-            
-            // Mettre à jour l'état de la conversation
-            const updatedState = updateConversationState(conversationState, extractedData)
-            setConversationState(sessionId, updatedState)
-            
-            console.log('🔄 [WORKFLOW] State updated')
-            console.log('🔄 [WORKFLOW] New stage:', updatedState.currentStage)
-            console.log('🔄 [WORKFLOW] Extracted data:', JSON.stringify(extractedData, null, 2))
+          // Post-process: update session state from response
+          const { cleanResponse, memoryUpdated, backlogUpdated } = processResponse(sessionId, fullResponse)
+          
+          if (memoryUpdated) {
+            console.log('🧠 [SESSION] Memory updated from response')
+          }
+          if (backlogUpdated) {
+            console.log('📝 [SESSION] Question backlog updated')
           }
           
-          // Envoyer le signal de fin
+          // Send done signal
           controller.enqueue(encoder.encode('data: [DONE]\n\n'))
           controller.close()
         } catch (error) {
@@ -177,4 +154,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-
