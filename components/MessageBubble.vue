@@ -310,11 +310,6 @@ const {
   getAllQuestionsList
 } = useQuestions()
 
-// #region agent log
-console.log('[DEBUG] MessageBubble mounted/created', {messageId:props.message.id,messageText:props.message.text.substring(0,100)});
-fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:182',message:'MessageBubble component created',data:{messageId:props.message.id,messageTextLength:props.message.text.length,hasBacklogTag:props.message.text.includes('<question_backlog>')},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'C'})}).catch(()=>{});
-// #endregion
-
 const editingQuestionId = ref<string | null>(null)
 const editingQuestionText = ref('')
 
@@ -333,10 +328,6 @@ const renderMarkdown = (text: string): string => {
 }
 
 const parsedContent = computed(() => {
-  // #region agent log
-  console.log('[DEBUG] parsedContent computed', {messageId:props.message.id,textLength:props.message.text.length,hasBacklogTag:props.message.text.includes('<question_backlog>')});
-  fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:354',message:'parsedContent computed',data:{messageId:props.message.id,textLength:props.message.text.length,hasBacklogTag:props.message.text.includes('<question_backlog>'),textPreview:props.message.text.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'E'})}).catch(()=>{});
-  // #endregion
   const parts: ContentPart[] = []
   let text = props.message.text
   
@@ -367,10 +358,6 @@ const parsedContent = computed(() => {
   while ((match = backlogRegex.exec(text)) !== null) {
     try {
       const questions = JSON.parse(match[1])
-      // #region agent log
-      console.log('[DEBUG] parsed question backlog', {messageId:props.message.id,questionsCount:questions.length,questions});
-      fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:386',message:'parsed question backlog',data:{messageId:props.message.id,matchText:match[0],questionsCount:questions.length,questions},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
       if (Array.isArray(questions) && questions.length > 0) {
         matches.push({
           index: match.index,
@@ -381,10 +368,6 @@ const parsedContent = computed(() => {
       }
     } catch (e) {
       // If JSON parse fails, skip this block
-      // #region agent log
-      console.log('[DEBUG] failed to parse question backlog', {messageId:props.message.id,error:String(e)});
-      fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:400',message:'failed to parse question backlog',data:{messageId:props.message.id,error:String(e),matchText:match[0]},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
       console.warn('Failed to parse question backlog:', e)
     }
   }
@@ -510,10 +493,6 @@ const backlogParts = computed(() => {
   const parts = parsedContent.value
     .map((part, index) => ({ part, index }))
     .filter(({ part }) => part.type === 'backlog')
-  // #region agent log
-  console.log('[DEBUG] backlogParts computed', {messageId:props.message.id,backlogPartsCount:parts.length,parts:parts.map(({part,index})=>({index,questionsCount:part.questions?.length||0,questions:part.questions}))});
-  fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:188',message:'backlogParts computed',data:{messageId:props.message.id,backlogPartsCount:parts.length,parts:parts.map(({part,index})=>({index,questionsCount:part.questions?.length||0,questions:part.questions}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'E'})}).catch(()=>{});
-  // #endregion
   return parts
 })
 
@@ -521,16 +500,8 @@ const backlogParts = computed(() => {
 watch(
   () => [parsedContent.value, props.message.id],
   (newVal, oldVal) => {
-    // #region agent log
-    console.log('[DEBUG] watch triggered', {messageId:props.message.id,parsedContentLength:parsedContent.value.length,backlogPartsCount:backlogParts.value.length,backlogParts:backlogParts.value.map(({part,index})=>({index,hasQuestions:!!part.questions,questionsCount:part.questions?.length||0,questions:part.questions}))});
-    fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:195',message:'watch triggered',data:{messageId:props.message.id,parsedContentLength:parsedContent.value.length,backlogPartsCount:backlogParts.value.length,backlogParts:backlogParts.value.map(({part,index})=>({index,hasQuestions:!!part.questions,questionsCount:part.questions?.length||0,questions:part.questions}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     backlogParts.value.forEach(({ part, index }) => {
       if (part.questions && part.questions.length > 0) {
-        // #region agent log
-        console.log('[DEBUG] calling addQuestions', {messageId:props.message.id,partIndex:index,questions:part.questions});
-        fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:201',message:'calling addQuestions',data:{messageId:props.message.id,partIndex:index,questions:part.questions},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         addQuestions(props.message.id, index, part.questions)
       }
     })
@@ -542,29 +513,17 @@ watch(
 watch(
   () => getAllQuestions.value,
   (newVal, oldVal) => {
-    // #region agent log
-    console.log('[DEBUG] getAllQuestions changed', {messageId:props.message.id,newCount:newVal.length,oldCount:oldVal?.length||0,questions:newVal.map(q=>({id:q.id,question:q.question,checked:q.checked,messageId:q.messageId}))});
-    fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:212',message:'getAllQuestions changed',data:{messageId:props.message.id,newCount:newVal.length,oldCount:oldVal?.length||0,questions:newVal.map(q=>({id:q.id,question:q.question,checked:q.checked,messageId:q.messageId}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
   },
   { deep: true }
 )
 
 // Get displayed questions - show all questions from all messages, with previous ones checked
 const displayedQuestions = computed(() => {
-    // #region agent log
-    console.log('[DEBUG] displayedQuestions computed', {messageId:props.message.id,backlogPartsCount:backlogParts.value.length,getAllQuestionsValue:getAllQuestions.value.length});
-    fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:220',message:'displayedQuestions computed',data:{messageId:props.message.id,backlogPartsCount:backlogParts.value.length,getAllQuestionsValue:getAllQuestions.value.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
   // If this message has backlog parts, show all questions (from all messages)
   // Otherwise, show only questions from this message
   if (backlogParts.value.length > 0) {
     // Show all questions from all messages - use reactive computed instead of function
     const allQuestions = getAllQuestions.value
-    // #region agent log
-    console.log('[DEBUG] got allQuestions from computed', {count:allQuestions.length,questions:allQuestions.map(q=>({id:q.id,question:q.question,checked:q.checked,messageId:q.messageId}))});
-    fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:224',message:'got allQuestions from computed',data:{count:allQuestions.length,questions:allQuestions.map(q=>({id:q.id,question:q.question,checked:q.checked,messageId:q.messageId}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     // Sort by messageId (to group by message) and then by questionIndex
     // Create a copy before sorting to avoid mutating the reactive array
     const sorted = [...allQuestions].sort((a, b) => {
@@ -592,10 +551,6 @@ const displayedQuestions = computed(() => {
       // Fallback: sort by messageId string (newer messages typically come later alphabetically)
       return b.messageId.localeCompare(a.messageId)
     })
-    // #region agent log
-    console.log('[DEBUG] displayedQuestions sorted', {count:sorted.length,questions:sorted.map(q=>({id:q.id,question:q.question,checked:q.checked,messageId:q.messageId}))});
-    fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:254',message:'displayedQuestions sorted',data:{count:sorted.length,questions:sorted.map(q=>({id:q.id,question:q.question,checked:q.checked,messageId:q.messageId}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     return sorted
   } else {
     // No backlog parts in this message, return empty array
@@ -634,10 +589,6 @@ const handleOptionClick = (option: string, index: number) => {
 }
 
 const handleQuestionCheck = (questionId: string) => {
-  // #region agent log
-  console.log('[DEBUG] handleQuestionCheck called', {questionId});
-  fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:290',message:'handleQuestionCheck called',data:{questionId},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   toggleQuestion(questionId)
 }
 
