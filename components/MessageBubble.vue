@@ -59,25 +59,77 @@
             </div>
           </template>
           <template v-else-if="part.type === 'backlog'">
-            <details class="mt-3 border-l-2 border-gray-300 pl-3">
+            <details class="mt-3 border-l-2 border-gray-300 pl-3" :open="true">
               <summary class="cursor-pointer text-sm text-gray-500 font-light select-none hover:text-gray-700">
-                {{ $t('messageBubble.myNextQuestions') }} ({{ part.questions?.length || 0 }} {{ part.questions?.length === 1 ? $t('messageBubble.question') : $t('messageBubble.questions') }})
+                {{ $t('messageBubble.myNextQuestions') }} ({{ displayedQuestions.length }} {{ displayedQuestions.length === 1 ? $t('messageBubble.question') : $t('messageBubble.questions') }})
               </summary>
               <ul class="text-sm text-gray-500 font-light mt-2 space-y-2">
-                <li v-for="(question, qIndex) in part.questions" :key="qIndex" class="flex items-start gap-2">
+                <li 
+                  v-for="questionState in displayedQuestions" 
+                  :key="questionState.id" 
+                  class="flex items-start gap-2 group"
+                >
                   <input 
                     type="checkbox" 
-                    :id="`question-${index}-${qIndex}`"
-                    :checked="isQuestionChecked(index, qIndex)"
+                    :id="questionState.id"
+                    :checked="questionState.checked"
                     class="mt-0.5 h-4 w-4 text-gray-400 border-gray-300 rounded focus:ring-gray-500"
-                    @change="handleQuestionCheck(index, qIndex)"
+                    @change="handleQuestionCheck(questionState.id)"
                   />
-                  <label 
-                    :for="`question-${index}-${qIndex}`" 
-                    class="flex-1 cursor-pointer"
+                  <div class="flex-1 flex items-start gap-2 min-w-0">
+                    <input
+                      v-if="editingQuestionId === questionState.id"
+                      v-model="editingQuestionText"
+                      @blur="saveQuestionEdit(questionState.id)"
+                      @keyup.enter="saveQuestionEdit(questionState.id)"
+                      @keyup.esc="cancelQuestionEdit"
+                      class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      autofocus
+                    />
+                    <label 
+                      v-else
+                      :for="questionState.id" 
+                      :class="[
+                        'flex-1 cursor-pointer',
+                        questionState.checked ? 'line-through text-gray-400' : ''
+                      ]"
+                      @dblclick="startQuestionEdit(questionState.id, questionState.question)"
+                    >
+                      {{ questionState.question || $t('messageBubble.newQuestion') }}
+                    </label>
+                    <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        v-if="editingQuestionId !== questionState.id"
+                        @click="startQuestionEdit(questionState.id, questionState.question)"
+                        class="p-1 text-gray-400 hover:text-gray-600"
+                        :title="$t('messageBubble.editQuestion')"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button
+                        @click="deleteQuestion(questionState.id)"
+                        class="p-1 text-gray-400 hover:text-red-600"
+                        :title="$t('messageBubble.deleteQuestion')"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </li>
+                <li class="flex items-center gap-2 pt-1">
+                  <button
+                    @click="addNewQuestion"
+                    class="text-xs text-orange-500 hover:text-orange-600 flex items-center gap-1"
                   >
-                    {{ question }}
-                  </label>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    {{ $t('messageBubble.addQuestion') }}
+                  </button>
                 </li>
               </ul>
             </details>
@@ -89,9 +141,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { marked } from 'marked'
 import { useI18n } from 'vue-i18n'
+import { useQuestions } from '../composables/useQuestions'
 
 interface Message {
   id: string
@@ -116,47 +169,25 @@ const emit = defineEmits<{
 }>()
 
 const selectedOptionIndex = ref<number | null>(null)
-const checkedQuestions = ref<Map<string, Set<number>>>(new Map())
 const { t } = useI18n()
+const { 
+  addQuestions, 
+  toggleQuestion, 
+  updateQuestion, 
+  addNewQuestion: addNewQuestionToStore, 
+  deleteQuestion: deleteQuestionFromStore,
+  getQuestionsForMessagePart,
+  getAllQuestions,
+  getAllQuestionsList
+} = useQuestions()
 
-const containerClass = computed(() => {
-  return props.message.isUser 
-    ? 'flex justify-end mb-4 px-4'
-    : 'flex justify-start mb-4 px-4'
-})
+// #region agent log
+console.log('[DEBUG] MessageBubble mounted/created', {messageId:props.message.id,messageText:props.message.text.substring(0,100)});
+fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:182',message:'MessageBubble component created',data:{messageId:props.message.id,messageTextLength:props.message.text.length,hasBacklogTag:props.message.text.includes('<question_backlog>')},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'C'})}).catch(()=>{});
+// #endregion
 
-const bubbleClass = computed(() => {
-  const baseClass = 'max-w-[80%] px-4 py-3 break-words'
-  
-  if (props.message.isUser) {
-    return `${baseClass} bg-[#FAECE0] text-gray-900 rounded-xl rounded-tr-none`
-  } else {
-    return `${baseClass} text-gray-900 rounded-xl rounded-tl-none`
-  }
-})
-
-const handleOptionClick = (option: string, index: number) => {
-  selectedOptionIndex.value = index
-  emit('optionClick', option)
-}
-
-const handleQuestionCheck = (partIndex: number, questionIndex: number) => {
-  const key = `part-${partIndex}`
-  if (!checkedQuestions.value.has(key)) {
-    checkedQuestions.value.set(key, new Set())
-  }
-  const questionSet = checkedQuestions.value.get(key)!
-  if (questionSet.has(questionIndex)) {
-    questionSet.delete(questionIndex)
-  } else {
-    questionSet.add(questionIndex)
-  }
-}
-
-const isQuestionChecked = (partIndex: number, questionIndex: number): boolean => {
-  const key = `part-${partIndex}`
-  return checkedQuestions.value.get(key)?.has(questionIndex) || false
-}
+const editingQuestionId = ref<string | null>(null)
+const editingQuestionText = ref('')
 
 const renderMarkdown = (text: string): string => {
   if (!text) return ''
@@ -164,6 +195,10 @@ const renderMarkdown = (text: string): string => {
 }
 
 const parsedContent = computed(() => {
+  // #region agent log
+  console.log('[DEBUG] parsedContent computed', {messageId:props.message.id,textLength:props.message.text.length,hasBacklogTag:props.message.text.includes('<question_backlog>')});
+  fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:354',message:'parsedContent computed',data:{messageId:props.message.id,textLength:props.message.text.length,hasBacklogTag:props.message.text.includes('<question_backlog>'),textPreview:props.message.text.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
   const parts: ContentPart[] = []
   let text = props.message.text
   
@@ -194,6 +229,10 @@ const parsedContent = computed(() => {
   while ((match = backlogRegex.exec(text)) !== null) {
     try {
       const questions = JSON.parse(match[1])
+      // #region agent log
+      console.log('[DEBUG] parsed question backlog', {messageId:props.message.id,questionsCount:questions.length,questions});
+      fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:386',message:'parsed question backlog',data:{messageId:props.message.id,matchText:match[0],questionsCount:questions.length,questions},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       if (Array.isArray(questions) && questions.length > 0) {
         matches.push({
           index: match.index,
@@ -204,6 +243,10 @@ const parsedContent = computed(() => {
       }
     } catch (e) {
       // If JSON parse fails, skip this block
+      // #region agent log
+      console.log('[DEBUG] failed to parse question backlog', {messageId:props.message.id,error:String(e)});
+      fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:400',message:'failed to parse question backlog',data:{messageId:props.message.id,error:String(e),matchText:match[0]},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       console.warn('Failed to parse question backlog:', e)
     }
   }
@@ -323,6 +366,163 @@ const parsedContent = computed(() => {
   
   return parts
 })
+
+// Find backlog parts and initialize questions
+const backlogParts = computed(() => {
+  const parts = parsedContent.value
+    .map((part, index) => ({ part, index }))
+    .filter(({ part }) => part.type === 'backlog')
+  // #region agent log
+  console.log('[DEBUG] backlogParts computed', {messageId:props.message.id,backlogPartsCount:parts.length,parts:parts.map(({part,index})=>({index,questionsCount:part.questions?.length||0,questions:part.questions}))});
+  fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:188',message:'backlogParts computed',data:{messageId:props.message.id,backlogPartsCount:parts.length,parts:parts.map(({part,index})=>({index,questionsCount:part.questions?.length||0,questions:part.questions}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
+  return parts
+})
+
+// Watch for new backlog parts and add questions
+watch(
+  () => [parsedContent.value, props.message.id],
+  (newVal, oldVal) => {
+    // #region agent log
+    console.log('[DEBUG] watch triggered', {messageId:props.message.id,parsedContentLength:parsedContent.value.length,backlogPartsCount:backlogParts.value.length,backlogParts:backlogParts.value.map(({part,index})=>({index,hasQuestions:!!part.questions,questionsCount:part.questions?.length||0,questions:part.questions}))});
+    fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:195',message:'watch triggered',data:{messageId:props.message.id,parsedContentLength:parsedContent.value.length,backlogPartsCount:backlogParts.value.length,backlogParts:backlogParts.value.map(({part,index})=>({index,hasQuestions:!!part.questions,questionsCount:part.questions?.length||0,questions:part.questions}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    backlogParts.value.forEach(({ part, index }) => {
+      if (part.questions && part.questions.length > 0) {
+        // #region agent log
+        console.log('[DEBUG] calling addQuestions', {messageId:props.message.id,partIndex:index,questions:part.questions});
+        fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:201',message:'calling addQuestions',data:{messageId:props.message.id,partIndex:index,questions:part.questions},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        addQuestions(props.message.id, index, part.questions)
+      }
+    })
+  },
+  { immediate: true, deep: true }
+)
+
+// Watch getAllQuestions to verify reactivity
+watch(
+  () => getAllQuestions.value,
+  (newVal, oldVal) => {
+    // #region agent log
+    console.log('[DEBUG] getAllQuestions changed', {messageId:props.message.id,newCount:newVal.length,oldCount:oldVal?.length||0,questions:newVal.map(q=>({id:q.id,question:q.question,checked:q.checked,messageId:q.messageId}))});
+    fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:212',message:'getAllQuestions changed',data:{messageId:props.message.id,newCount:newVal.length,oldCount:oldVal?.length||0,questions:newVal.map(q=>({id:q.id,question:q.question,checked:q.checked,messageId:q.messageId}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+  },
+  { deep: true }
+)
+
+// Get displayed questions - show all questions from all messages, with previous ones checked
+const displayedQuestions = computed(() => {
+    // #region agent log
+    console.log('[DEBUG] displayedQuestions computed', {messageId:props.message.id,backlogPartsCount:backlogParts.value.length,getAllQuestionsValue:getAllQuestions.value.length});
+    fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:220',message:'displayedQuestions computed',data:{messageId:props.message.id,backlogPartsCount:backlogParts.value.length,getAllQuestionsValue:getAllQuestions.value.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+  // If this message has backlog parts, show all questions (from all messages)
+  // Otherwise, show only questions from this message
+  if (backlogParts.value.length > 0) {
+    // Show all questions from all messages - use reactive computed instead of function
+    const allQuestions = getAllQuestions.value
+    // #region agent log
+    console.log('[DEBUG] got allQuestions from computed', {count:allQuestions.length,questions:allQuestions.map(q=>({id:q.id,question:q.question,checked:q.checked,messageId:q.messageId}))});
+    fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:224',message:'got allQuestions from computed',data:{count:allQuestions.length,questions:allQuestions.map(q=>({id:q.id,question:q.question,checked:q.checked,messageId:q.messageId}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    // Sort by messageId (to group by message) and then by questionIndex
+    // Create a copy before sorting to avoid mutating the reactive array
+    const sorted = [...allQuestions].sort((a, b) => {
+      // First, check if questions are from the same message
+      if (a.messageId === b.messageId) {
+        // Same message: sort by questionIndex
+        if (a.questionIndex === -1 && b.questionIndex !== -1) return 1
+        if (a.questionIndex !== -1 && b.questionIndex === -1) return -1
+        if (a.questionIndex !== -1 && b.questionIndex !== -1) {
+          return a.questionIndex - b.questionIndex
+        }
+        return a.id.localeCompare(b.id)
+      }
+      // Different messages: try to extract timestamp from messageId
+      // Message IDs are like "bot-1234567890" or "user-1234567890"
+      const aMatch = a.messageId.match(/\d+/)
+      const bMatch = b.messageId.match(/\d+/)
+      if (aMatch && bMatch) {
+        const aTime = parseInt(aMatch[0])
+        const bTime = parseInt(bMatch[0])
+        if (aTime !== bTime) {
+          return bTime - aTime // Newer messages first
+        }
+      }
+      // Fallback: sort by messageId string (newer messages typically come later alphabetically)
+      return b.messageId.localeCompare(a.messageId)
+    })
+    // #region agent log
+    console.log('[DEBUG] displayedQuestions sorted', {count:sorted.length,questions:sorted.map(q=>({id:q.id,question:q.question,checked:q.checked,messageId:q.messageId}))});
+    fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:254',message:'displayedQuestions sorted',data:{count:sorted.length,questions:sorted.map(q=>({id:q.id,question:q.question,checked:q.checked,messageId:q.messageId}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    return sorted
+  } else {
+    // No backlog parts in this message, return empty array
+    return []
+  }
+})
+
+const containerClass = computed(() => {
+  return props.message.isUser 
+    ? 'flex justify-end mb-4 px-4'
+    : 'flex justify-start mb-4 px-4'
+})
+
+const bubbleClass = computed(() => {
+  const baseClass = 'max-w-[80%] px-4 py-3 break-words'
+  
+  if (props.message.isUser) {
+    return `${baseClass} bg-[#FAECE0] text-gray-900 rounded-xl rounded-tr-none`
+  } else {
+    return `${baseClass} text-gray-900 rounded-xl rounded-tl-none`
+  }
+})
+
+const handleOptionClick = (option: string, index: number) => {
+  selectedOptionIndex.value = index
+  emit('optionClick', option)
+}
+
+const handleQuestionCheck = (questionId: string) => {
+  // #region agent log
+  console.log('[DEBUG] handleQuestionCheck called', {questionId});
+  fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessageBubble.vue:290',message:'handleQuestionCheck called',data:{questionId},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+  toggleQuestion(questionId)
+}
+
+const startQuestionEdit = (questionId: string, currentText: string) => {
+  editingQuestionId.value = questionId
+  editingQuestionText.value = currentText
+}
+
+const saveQuestionEdit = (questionId: string) => {
+  if (editingQuestionText.value.trim()) {
+    updateQuestion(questionId, editingQuestionText.value.trim())
+  }
+  editingQuestionId.value = null
+  editingQuestionText.value = ''
+}
+
+const cancelQuestionEdit = () => {
+  editingQuestionId.value = null
+  editingQuestionText.value = ''
+}
+
+const addNewQuestion = () => {
+  const firstBacklogPart = backlogParts.value[0]
+  if (firstBacklogPart) {
+    const newId = addNewQuestionToStore(props.message.id, firstBacklogPart.index)
+    startQuestionEdit(newId, '')
+  }
+}
+
+const deleteQuestion = (questionId: string) => {
+  deleteQuestionFromStore(questionId)
+}
 </script>
 
 <style scoped>

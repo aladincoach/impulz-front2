@@ -16,7 +16,11 @@
     "thinking": "Thinking",
     "myNextQuestions": "My next questions",
     "question": "question",
-    "questions": "questions"
+    "questions": "questions",
+    "newQuestion": "New question",
+    "addQuestion": "Add question",
+    "editQuestion": "Edit question",
+    "deleteQuestion": "Delete question"
   }
 }
 

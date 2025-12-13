@@ -16,7 +16,11 @@
     "thinking": "Réflexion",
     "myNextQuestions": "Mes prochaines questions",
     "question": "question",
-    "questions": "questions"
+    "questions": "questions",
+    "newQuestion": "Nouvelle question",
+    "addQuestion": "Ajouter une question",
+    "editQuestion": "Modifier la question",
+    "deleteQuestion": "Supprimer la question"
   }
 }
 
