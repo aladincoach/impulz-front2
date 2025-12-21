@@ -21,3 +21,4 @@ END $$;
 -- Create index if it doesn't exist
 CREATE INDEX IF NOT EXISTS idx_conversations_session_id ON conversations(session_id);
 
+

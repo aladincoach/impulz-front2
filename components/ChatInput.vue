@@ -1,6 +1,6 @@
 <template>
   <form @submit.prevent="handleSubmit">
-    <div class="flex gap-3 items-end justify-center">
+    <div class="flex gap-2 sm:gap-3 items-end justify-center">
       <UTextarea
         ref="inputRef"
         v-model="inputText"
@@ -11,6 +11,9 @@
         :ui="{ 
           base: 'flex-1',
           rounded: 'rounded-2xl',
+          size: {
+            default: 'text-sm sm:text-base'
+          }
         }"
         autocomplete="off"
         :disabled="disabled"
@@ -20,9 +23,12 @@
         type="submit"
         :disabled="!inputText.trim() || disabled"
         icon="i-heroicons-paper-airplane"
-        size="xl"
+        size="lg"
         :ui="{
           rounded: 'rounded-full',
+          size: {
+            lg: 'h-10 w-10 sm:h-12 sm:w-12'
+          }
         }"
       />
     </div>
