@@ -569,8 +569,8 @@ const uncheckedQuestions = computed(() => {
 
 const containerClass = computed(() => {
   return props.message.isUser 
-    ? 'flex justify-end mb-4 px-4'
-    : 'flex justify-start mb-4 px-4'
+    ? 'flex justify-end mb-4 px-2 sm:px-4'
+    : 'flex justify-start mb-4 px-2 sm:px-4'
 })
 
 const bubbleClass = computed(() => {

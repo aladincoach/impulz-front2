@@ -87,3 +87,4 @@ CREATE TRIGGER update_topics_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_topics_updated_at();
 
+

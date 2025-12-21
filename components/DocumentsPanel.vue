@@ -297,31 +297,14 @@ watch(currentTopicId, async (newTopicId) => {
   }
 }, { immediate: true })
 
-// Auto-refresh challenges periodically (every 5 seconds)
-let refreshInterval: ReturnType<typeof setInterval> | null = null
-
+// Refresh when panel opens or topic changes
 watch([currentTopicId, isOpen], async ([topicId, open]) => {
-  if (refreshInterval) {
-    clearInterval(refreshInterval)
-    refreshInterval = null
-  }
-  
   if (topicId && open) {
-    // Refresh immediately
+    // Refresh immediately when panel opens or topic changes
     await Promise.all([
       loadChallenges(topicId),
       loadProjectMemory(topicId)
     ])
-    
-    // Then refresh every 3 seconds to catch memory updates quickly
-    refreshInterval = setInterval(async () => {
-      if (currentTopicId.value) {
-        await Promise.all([
-          loadChallenges(currentTopicId.value),
-          loadProjectMemory(currentTopicId.value)
-        ])
-      }
-    }, 3000)
   }
 })
 
@@ -585,9 +568,6 @@ onUnmounted(() => {
     window.removeEventListener('resize', updateMobile)
     window.removeEventListener('memory-refresh', handleMemoryRefresh)
     document.removeEventListener('click', handleClickOutside)
-  }
-  if (refreshInterval) {
-    clearInterval(refreshInterval)
   }
 })
 </script>
