@@ -14,15 +14,25 @@
 
     <!-- Documents Panel -->
     <div
-      class="bg-white border-l border-gray-200 h-screen overflow-y-auto transition-transform duration-300 ease-in-out flex-shrink-0"
+      ref="panelRef"
+      class="bg-white border-l border-gray-200 h-screen overflow-y-auto flex-shrink-0 relative"
       :class="{
         'fixed right-0 top-0 z-40 w-full sm:w-96': isMobile,
-        'w-96': !isMobile,
         'translate-x-0': isOpen || !isMobile,
         'translate-x-full': !isOpen && isMobile,
-        'hidden': !isMobile && !isOpen
+        'hidden': !isMobile && !isOpen,
+        'transition-transform duration-300 ease-in-out': isMobile
       }"
+      :style="!isMobile ? { width: `${panelWidth}px` } : {}"
     >
+      <!-- Resize Handle (Desktop only) -->
+      <div
+        v-if="!isMobile"
+        @mousedown="startResize"
+        class="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 transition-colors z-50 group"
+      >
+        <div class="absolute left-0 top-0 bottom-0 w-1 bg-transparent group-hover:bg-blue-500"></div>
+      </div>
       <!-- Header -->
       <div class="p-4 border-b border-gray-200 sticky top-0 bg-white z-10">
         <div class="flex items-center justify-between mb-2">
@@ -263,6 +273,13 @@ const showDocumentDropdown = ref(false)
 
 // Detect mobile
 const isMobile = ref(false)
+
+// Panel resizing
+const panelRef = ref<HTMLElement | null>(null)
+const panelWidth = ref(384) // Default width (w-96 = 384px)
+const isResizing = ref(false)
+const MIN_WIDTH = 300
+const MAX_WIDTH = 800
 
 const updateMobile = () => {
   if (typeof window !== 'undefined') {
@@ -525,6 +542,38 @@ const getDocumentTypeLabel = (type: string): string => {
 const selectDocument = (documentId: string) => {
   selectedDocumentId.value = documentId
   showDocumentDropdown.value = false
+}
+
+// Resize functionality
+const startResize = (e: MouseEvent) => {
+  if (isMobile.value) return
+  
+  isResizing.value = true
+  e.preventDefault()
+  
+  const startX = e.clientX
+  const startWidth = panelWidth.value
+  
+  const handleMouseMove = (moveEvent: MouseEvent) => {
+    if (!isResizing.value) return
+    
+    const deltaX = startX - moveEvent.clientX
+    const newWidth = Math.min(Math.max(startWidth + deltaX, MIN_WIDTH), MAX_WIDTH)
+    panelWidth.value = newWidth
+  }
+  
+  const handleMouseUp = () => {
+    isResizing.value = false
+    document.removeEventListener('mousemove', handleMouseMove)
+    document.removeEventListener('mouseup', handleMouseUp)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }
+  
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+  document.addEventListener('mousemove', handleMouseMove)
+  document.addEventListener('mouseup', handleMouseUp)
 }
 
 // Close dropdown when clicking outside
