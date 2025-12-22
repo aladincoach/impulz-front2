@@ -4,12 +4,12 @@ import { getSupabaseClient } from '../utils/supabase'
  * Create a challenge/document when a capability is generated
  */
 export default defineEventHandler(async (event) => {
-  const { topicId, projectId, documentType, title, content } = await readBody(event)
+  const { projectId, documentType, title, content } = await readBody(event)
 
-  if (!topicId || !documentType || !title || !content) {
+  if (!projectId || !documentType || !title || !content) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'Missing required fields: topicId, documentType, title, content'
+      statusMessage: 'Missing required fields: projectId, documentType, title, content'
     })
   }
 
@@ -32,8 +32,7 @@ export default defineEventHandler(async (event) => {
     const { data, error } = await supabase
       .from('challenges')
       .insert({
-        topic_id: topicId,
-        project_id: projectId || null,
+        project_id: projectId,
         document_type: documentType,
         title,
         content,
@@ -59,5 +58,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-
-

@@ -9,25 +9,26 @@ export interface Project {
   metadata?: Record<string, any>
 }
 
-export interface Topic {
+export interface Conversation {
   id: string
   project_id: string
   name: string
+  session_id: string
   created_at: string
   updated_at: string
   metadata?: Record<string, any>
 }
 
 const projects = ref<Project[]>([])
-const topics = ref<Topic[]>([])
+const conversations = ref<Conversation[]>([])
 const currentProjectId = ref<string | null>(null)
-const currentTopicId = ref<string | null>(null)
+const currentConversationId = ref<string | null>(null)
 const isLoading = ref(false)
 
 export const useProjects = () => {
   const { t } = useI18n()
   
-  // Load all projects with their topics
+  // Load all projects with their conversations
   const loadProjects = async () => {
     isLoading.value = true
     try {
@@ -35,9 +36,15 @@ export const useProjects = () => {
       const projectsResponse = await $fetch<Project[]>('/api/projects').catch(() => [])
       projects.value = projectsResponse || []
 
-      // Load topics for all projects
-      const topicsResponse = await $fetch<Topic[]>('/api/topics').catch(() => [])
-      topics.value = topicsResponse || []
+      // Load conversations for all projects
+      if (projects.value.length > 0) {
+        const allConversations: Conversation[] = []
+        for (const project of projects.value) {
+          const convResponse = await $fetch<{ conversations: Conversation[] }>(`/api/conversations?project_id=${project.id}&list=true`).catch(() => ({ conversations: [] }))
+          allConversations.push(...(convResponse.conversations || []))
+        }
+        conversations.value = allConversations
+      }
 
       // If no projects exist, create a default one
       if (projects.value.length === 0) {
@@ -52,19 +59,19 @@ export const useProjects = () => {
         currentProjectId.value = projects.value[0].id
       }
 
-      // If current project has no topics, create a default topic
+      // If current project has no conversations, create a default conversation
       if (currentProjectId.value) {
-        const projectTopics = getTopicsForProject(currentProjectId.value)
-        if (projectTopics.length === 0) {
-          const defaultName = t('topics.defaultName', 'New Topic')
-          const defaultTopic = await createTopic(currentProjectId.value, defaultName)
-          if (defaultTopic) {
-            topics.value.push(defaultTopic)
-            currentTopicId.value = defaultTopic.id
+        const projectConversations = getConversationsForProject(currentProjectId.value)
+        if (projectConversations.length === 0) {
+          const defaultName = t('conversations.defaultName', 'New Conversation')
+          const defaultConversation = await createConversation(currentProjectId.value, defaultName)
+          if (defaultConversation) {
+            conversations.value.push(defaultConversation)
+            currentConversationId.value = defaultConversation.id
           }
-        } else if (!currentTopicId.value) {
-          // Set first topic as current if none selected
-          currentTopicId.value = projectTopics[0].id
+        } else if (!currentConversationId.value) {
+          // Set first conversation as current if none selected
+          currentConversationId.value = projectConversations[0].id
         }
       }
     } catch (error) {
@@ -77,11 +84,11 @@ export const useProjects = () => {
           if (defaultProject) {
             projects.value = [defaultProject]
             currentProjectId.value = defaultProject.id
-            const defaultTopicName = t('topics.defaultName', 'New Topic')
-            const defaultTopic = await createTopic(defaultProject.id, defaultTopicName)
-            if (defaultTopic) {
-              topics.value.push(defaultTopic)
-              currentTopicId.value = defaultTopic.id
+            const defaultConversationName = t('conversations.defaultName', 'New Conversation')
+            const defaultConversation = await createConversation(defaultProject.id, defaultConversationName)
+            if (defaultConversation) {
+              conversations.value.push(defaultConversation)
+              currentConversationId.value = defaultConversation.id
             }
           }
         } catch (createError) {
@@ -133,16 +140,16 @@ export const useProjects = () => {
         method: 'DELETE'
       })
       projects.value = projects.value.filter(p => p.id !== id)
-      topics.value = topics.value.filter(t => t.project_id !== id)
+      conversations.value = conversations.value.filter(c => c.project_id !== id)
       
       // If deleted project was current, switch to first available
       if (currentProjectId.value === id) {
         currentProjectId.value = projects.value.length > 0 ? projects.value[0].id : null
         if (currentProjectId.value) {
-          const projectTopics = getTopicsForProject(currentProjectId.value)
-          currentTopicId.value = projectTopics.length > 0 ? projectTopics[0].id : null
+          const projectConversations = getConversationsForProject(currentProjectId.value)
+          currentConversationId.value = projectConversations.length > 0 ? projectConversations[0].id : null
         } else {
-          currentTopicId.value = null
+          currentConversationId.value = null
         }
       }
       return true
@@ -152,89 +159,89 @@ export const useProjects = () => {
     }
   }
 
-  // Create a new topic
-  const createTopic = async (projectId: string, name: string): Promise<Topic | null> => {
+  // Create a new conversation
+  const createConversation = async (projectId: string, name?: string): Promise<Conversation | null> => {
     try {
-      const topic = await $fetch<Topic>('/api/topics', {
+      const conversation = await $fetch<Conversation>('/api/conversations', {
         method: 'POST',
-        body: { project_id: projectId, name }
+        body: { project_id: projectId, name: name || 'New Conversation' }
       })
-      topics.value.push(topic)
-      return topic
+      conversations.value.push(conversation)
+      return conversation
     } catch (error) {
-      console.error('Error creating topic:', error)
+      console.error('Error creating conversation:', error)
       return null
     }
   }
 
-  // Update topic name
-  const updateTopic = async (id: string, name: string): Promise<boolean> => {
+  // Update conversation name
+  const updateConversation = async (id: string, name: string): Promise<boolean> => {
     try {
-      const updated = await $fetch<Topic>(`/api/topics/${id}`, {
+      const updated = await $fetch<Conversation>(`/api/conversations/${id}`, {
         method: 'PATCH',
         body: { name }
       })
-      const index = topics.value.findIndex(t => t.id === id)
+      const index = conversations.value.findIndex(c => c.id === id)
       if (index !== -1) {
-        topics.value[index] = updated
+        conversations.value[index] = updated
       }
       return true
     } catch (error) {
-      console.error('Error updating topic:', error)
+      console.error('Error updating conversation:', error)
       return false
     }
   }
 
-  // Delete topic
-  const deleteTopic = async (id: string): Promise<boolean> => {
+  // Delete conversation
+  const deleteConversation = async (id: string): Promise<boolean> => {
     try {
-      await $fetch(`/api/topics/${id}`, {
+      await $fetch(`/api/conversations/${id}`, {
         method: 'DELETE'
       })
-      topics.value = topics.value.filter(t => t.id !== id)
+      conversations.value = conversations.value.filter(c => c.id !== id)
       
-      // If deleted topic was current, switch to first available in project
-      if (currentTopicId.value === id && currentProjectId.value) {
-        const projectTopics = getTopicsForProject(currentProjectId.value)
-        currentTopicId.value = projectTopics.length > 0 ? projectTopics[0].id : null
+      // If deleted conversation was current, switch to first available in project
+      if (currentConversationId.value === id && currentProjectId.value) {
+        const projectConversations = getConversationsForProject(currentProjectId.value)
+        currentConversationId.value = projectConversations.length > 0 ? projectConversations[0].id : null
       }
       return true
     } catch (error) {
-      console.error('Error deleting topic:', error)
+      console.error('Error deleting conversation:', error)
       return false
     }
   }
 
-  // Get topics for a project
-  const getTopicsForProject = (projectId: string): Topic[] => {
-    return topics.value.filter(t => t.project_id === projectId)
+  // Get conversations for a project
+  const getConversationsForProject = (projectId: string): Conversation[] => {
+    return conversations.value.filter(c => c.project_id === projectId)
   }
 
   // Set current project
   const setCurrentProject = async (projectId: string) => {
     const { t } = useI18n()
     currentProjectId.value = projectId
-    const projectTopics = getTopicsForProject(projectId)
+    const projectConversations = getConversationsForProject(projectId)
     
-    // If no topics exist, create a default one
-    if (projectTopics.length === 0) {
-      const defaultName = t('topics.defaultName', 'New Topic')
-      const defaultTopic = await createTopic(projectId, defaultName)
-      if (defaultTopic) {
-        currentTopicId.value = defaultTopic.id
+    // If no conversations exist, create a default one
+    if (projectConversations.length === 0) {
+      const defaultName = t('conversations.defaultName', 'New Conversation')
+      const defaultConversation = await createConversation(projectId, defaultName)
+      if (defaultConversation) {
+        currentConversationId.value = defaultConversation.id
       }
     } else {
-      // Set first topic as current
-      currentTopicId.value = projectTopics[0].id
+      // Set first conversation as current
+      currentConversationId.value = projectConversations[0].id
     }
   }
 
-  // Set current topic
-  const setCurrentTopic = (topicId: string) => {
-    const topic = topics.value.find(t => t.id === topicId)
-    if (topic) {
-      currentTopicId.value = topicId
-      currentProjectId.value = topic.project_id
+  // Set current conversation
+  const setCurrentConversation = (conversationId: string) => {
+    const conversation = conversations.value.find(c => c.id === conversationId)
+    if (conversation) {
+      currentConversationId.value = conversationId
+      currentProjectId.value = conversation.project_id
     }
   }
 
@@ -243,38 +250,37 @@ export const useProjects = () => {
     return projects.value.find(p => p.id === currentProjectId.value) || null
   })
 
-  // Get current topic
-  const currentTopic = computed(() => {
-    return topics.value.find(t => t.id === currentTopicId.value) || null
+  // Get current conversation
+  const currentConversation = computed(() => {
+    return conversations.value.find(c => c.id === currentConversationId.value) || null
   })
 
   // Get project tree structure
   const projectTree = computed(() => {
     return projects.value.map(project => ({
       ...project,
-      topics: getTopicsForProject(project.id)
+      conversations: getConversationsForProject(project.id)
     }))
   })
 
   return {
     projects: computed(() => projects.value),
-    topics: computed(() => topics.value),
+    conversations: computed(() => conversations.value),
     currentProjectId: computed(() => currentProjectId.value),
-    currentTopicId: computed(() => currentTopicId.value),
+    currentConversationId: computed(() => currentConversationId.value),
     currentProject,
-    currentTopic,
+    currentConversation,
     projectTree,
     isLoading: computed(() => isLoading.value),
     loadProjects,
     createProject,
     updateProject,
     deleteProject,
-    createTopic,
-    updateTopic,
-    deleteTopic,
+    createConversation,
+    updateConversation,
+    deleteConversation,
     setCurrentProject,
-    setCurrentTopic,
-    getTopicsForProject
+    setCurrentConversation,
+    getConversationsForProject
   }
 }
-

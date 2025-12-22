@@ -4,7 +4,7 @@
     <ProjectsSidebar
       v-model:is-open="sidebarOpen"
       @project-changed="handleProjectChanged"
-      @topic-changed="handleTopicChanged"
+      @conversation-changed="handleConversationChanged"
     />
 
     <!-- Main content -->
@@ -26,8 +26,8 @@
               </svg>
             </button>
             <h1 class="text-xl font-semibold text-gray-900">{{ $t('chat.title') }}</h1>
-            <span v-if="currentProject && currentTopic" class="hidden sm:inline text-sm text-gray-500">
-              / {{ currentProject.name }} / {{ currentTopic.name }}
+            <span v-if="currentProject && currentConversation" class="hidden sm:inline text-sm text-gray-500">
+              / {{ currentProject.name }} / {{ currentConversation.name }}
             </span>
           </div>
           <LanguageSwitcher />
@@ -77,34 +77,34 @@
       <!-- Fixed Input at Bottom -->
       <div class="sticky bottom-0 bg-white border-t border-gray-200">
         <div class="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-4">
-          <ChatInput ref="chatInputRef" @send="handleSendMessage" :disabled="isWaitingForResponse || !currentTopicId || projectsLoading" />
+          <ChatInput ref="chatInputRef" @send="handleSendMessage" :disabled="isWaitingForResponse || !currentConversationId || projectsLoading" />
         </div>
       </div>
     </div>
 
-    <!-- Topic change confirmation dialog -->
+    <!-- Conversation change confirmation dialog -->
     <div
-      v-if="showTopicChangeDialog"
+      v-if="showConversationChangeDialog"
       class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
-      @click.self="cancelTopicChange"
+      @click.self="cancelConversationChange"
     >
       <div class="bg-white rounded-lg p-6 max-w-md w-full" @click.stop>
-        <h3 class="text-lg font-semibold mb-4">{{ $t('chat.topicChangeTitle', 'Switch to a new topic?') }}</h3>
+        <h3 class="text-lg font-semibold mb-4">{{ $t('chat.conversationChangeTitle', 'Switch conversation?') }}</h3>
         <p class="text-gray-600 mb-4">
-          {{ $t('chat.topicChangeMessage', 'Your current conversation is about a different topic. Would you like to start a new topic thread?') }}
+          {{ $t('chat.conversationChangeMessage', 'You are about to switch to a different conversation. Your current conversation will be saved.') }}
         </p>
         <div class="flex justify-end gap-2">
           <button
-            @click="cancelTopicChange"
+            @click="cancelConversationChange"
             class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
           >
             {{ $t('common.cancel', 'Cancel') }}
           </button>
           <button
-            @click="confirmTopicChange"
+            @click="confirmConversationChange"
             class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            {{ $t('chat.startNewTopic', 'Start New Topic') }}
+            {{ $t('chat.switchConversation', 'Switch') }}
           </button>
         </div>
       </div>
@@ -138,23 +138,23 @@ const showFallbackWarning = ref(false)
 const sidebarOpen = ref(false)
 const documentsPanelOpen = ref(false)
 
-// Project and topic management
+// Project and conversation management
 const {
   currentProject,
-  currentTopic,
+  currentConversation,
   currentProjectId,
-  currentTopicId,
+  currentConversationId,
   loadProjects,
   isLoading: projectsLoading,
-  createTopic,
+  createConversation,
   createProject,
-  setCurrentTopic
+  setCurrentConversation
 } = useProjects()
 
-// Topic change detection
-const pendingTopicId = ref<string | null>(null)
-const showTopicChangeDialog = ref(false)
-const lastMessageTopic = ref<string | null>(null)
+// Conversation change detection
+const pendingConversationId = ref<string | null>(null)
+const showConversationChangeDialog = ref(false)
+const lastMessageConversation = ref<string | null>(null)
 
 // Detect if we're on mobile
 const isMobile = computed(() => {
@@ -174,19 +174,19 @@ watch(sidebarOpen, (newVal) => {
   }
 })
 
-// Watch for topic changes
-watch(currentTopicId, (newTopicId, oldTopicId) => {
-  if (oldTopicId && newTopicId && oldTopicId !== newTopicId && messages.value.length > 0) {
-    // Topic changed and we have messages - load conversation for new topic
-    loadConversationForTopic(newTopicId)
+// Watch for conversation changes
+watch(currentConversationId, (newConversationId, oldConversationId) => {
+  if (oldConversationId && newConversationId && oldConversationId !== newConversationId && messages.value.length > 0) {
+    // Conversation changed and we have messages - load conversation for new conversation
+    loadConversationMessages(newConversationId)
   }
 })
 
 // Internationalization
 const { t, locale } = useI18n()
 
-// Ensure a topic exists for the session
-const ensureTopicExists = async () => {
+// Ensure a conversation exists for the session
+const ensureConversationExists = async () => {
   // If no project exists, create one
   if (!currentProjectId.value && currentProject.value === null) {
     const defaultProjectName = t('projects.defaultName', 'New Project')
@@ -196,18 +196,18 @@ const ensureTopicExists = async () => {
     }
   }
 
-  // If no topic exists, create one
-  if (!currentTopicId.value && currentProjectId.value) {
-    const defaultTopicName = t('topics.defaultName', 'New Topic')
-    const newTopic = await createTopic(currentProjectId.value, defaultTopicName)
-    if (newTopic) {
-      setCurrentTopic(newTopic.id)
-      console.log('✅ [Frontend] Created default topic:', newTopic.id)
-      return newTopic.id
+  // If no conversation exists, create one
+  if (!currentConversationId.value && currentProjectId.value) {
+    const defaultConversationName = t('conversations.defaultName', 'New Conversation')
+    const newConversation = await createConversation(currentProjectId.value, defaultConversationName)
+    if (newConversation) {
+      setCurrentConversation(newConversation.id)
+      console.log('✅ [Frontend] Created default conversation:', newConversation.id)
+      return newConversation.id
     }
   }
 
-  return currentTopicId.value
+  return currentConversationId.value
 }
 
 // Load projects on mount
@@ -215,22 +215,22 @@ onMounted(async () => {
   try {
     await loadProjects()
     
-    // Ensure a topic exists - create one if needed
-    const topicId = await ensureTopicExists()
+    // Ensure a conversation exists - create one if needed
+    const conversationId = await ensureConversationExists()
     
-    // Load conversation for current topic if it exists
-    if (topicId) {
-      await loadConversationForTopic(topicId)
+    // Load conversation for current conversation if it exists
+    if (conversationId) {
+      await loadConversationMessages(conversationId)
     } else {
-      console.warn('⚠️ [Frontend] Could not ensure topic exists')
+      console.warn('⚠️ [Frontend] Could not ensure conversation exists')
     }
   } catch (error) {
     console.error('❌ [Frontend] Failed to load projects:', error)
-    // Try to create default project and topic as fallback
+    // Try to create default project and conversation as fallback
     try {
-      await ensureTopicExists()
+      await ensureConversationExists()
     } catch (fallbackError) {
-      console.error('❌ [Frontend] Failed to create fallback topic:', fallbackError)
+      console.error('❌ [Frontend] Failed to create fallback conversation:', fallbackError)
     }
   }
 })
@@ -296,14 +296,14 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyPress)
 })
 
-// Load conversation history for a topic
-const loadConversationForTopic = async (topicId: string) => {
+// Load conversation history for a conversation
+const loadConversationMessages = async (conversationId: string) => {
   try {
     // Clear current messages
     messages.value = []
     
     // Load conversation history from API
-    const response = await fetch(`/api/conversations?topic_id=${topicId}`)
+    const response = await fetch(`/api/conversations?conversation_id=${conversationId}`)
     if (response.ok) {
       const data = await response.json()
       if (data.messages && Array.isArray(data.messages)) {
@@ -322,53 +322,42 @@ const loadConversationForTopic = async (topicId: string) => {
   }
 }
 
-// Detect topic change from message content
-const detectTopicChange = (message: string): boolean => {
-  // Simple heuristic: if message is very different from last messages, might be topic change
-  // This is a basic implementation - you might want to use AI to detect this
-  if (messages.value.length === 0) return false
-  
-  // For now, we'll rely on explicit topic switching via sidebar
-  // But we can add more sophisticated detection later
-  return false
-}
-
 // Handle project change
 const handleProjectChanged = async (projectId: string) => {
-  // Project changed - messages will be cleared when topic loads
+  // Project changed - messages will be cleared when conversation loads
   console.log('Project changed to:', projectId)
 }
 
-// Handle topic change
-const handleTopicChanged = async (topicId: string) => {
-  if (messages.value.length > 0 && lastMessageTopic.value && lastMessageTopic.value !== topicId) {
-    // We have messages and topic changed - ask for confirmation
-    pendingTopicId.value = topicId
-    showTopicChangeDialog.value = true
+// Handle conversation change
+const handleConversationChanged = async (conversationId: string) => {
+  if (messages.value.length > 0 && lastMessageConversation.value && lastMessageConversation.value !== conversationId) {
+    // We have messages and conversation changed - ask for confirmation
+    pendingConversationId.value = conversationId
+    showConversationChangeDialog.value = true
   } else {
-    // No messages or first topic - just switch
-    await loadConversationForTopic(topicId)
-    lastMessageTopic.value = topicId
+    // No messages or first conversation - just switch
+    await loadConversationMessages(conversationId)
+    lastMessageConversation.value = conversationId
   }
 }
 
-// Confirm topic change
-const confirmTopicChange = async () => {
-  if (pendingTopicId.value) {
+// Confirm conversation change
+const confirmConversationChange = async () => {
+  if (pendingConversationId.value) {
     messages.value = []
-    await loadConversationForTopic(pendingTopicId.value)
-    lastMessageTopic.value = pendingTopicId.value
-    pendingTopicId.value = null
-    showTopicChangeDialog.value = false
+    await loadConversationMessages(pendingConversationId.value)
+    lastMessageConversation.value = pendingConversationId.value
+    pendingConversationId.value = null
+    showConversationChangeDialog.value = false
   }
 }
 
-// Cancel topic change
-const cancelTopicChange = () => {
-  pendingTopicId.value = null
-  showTopicChangeDialog.value = false
-  // Revert to previous topic if needed
-  // This would require storing previous topic ID
+// Cancel conversation change
+const cancelConversationChange = () => {
+  pendingConversationId.value = null
+  showConversationChangeDialog.value = false
+  // Revert to previous conversation if needed
+  // This would require storing previous conversation ID
 }
 
 const handleSendMessage = async (text: string) => {
@@ -378,17 +367,12 @@ const handleSendMessage = async (text: string) => {
     return
   }
 
-  // Check if we have a current topic (capture value to prevent race conditions)
-  const topicIdToSend = currentTopicId.value
-  if (!topicIdToSend) {
-    console.error('❌ [Frontend] No topic selected')
-    alert('Please select or create a topic first')
+  // Check if we have a current conversation (capture value to prevent race conditions)
+  const conversationIdToSend = currentConversationId.value
+  if (!conversationIdToSend) {
+    console.error('❌ [Frontend] No conversation selected')
+    alert('Please select or create a conversation first')
     return
-  }
-
-  // Detect if this might be a topic change
-  if (detectTopicChange(text) && messages.value.length > 0) {
-    // Could prompt user here, but for now we'll just send
   }
 
   // Clear available options when user sends a message
@@ -401,7 +385,7 @@ const handleSendMessage = async (text: string) => {
     isUser: true
   }
   messages.value.push(userMessage)
-  lastMessageTopic.value = topicIdToSend
+  lastMessageConversation.value = conversationIdToSend
 
   // Scroll to bottom
   nextTick(() => {
@@ -431,7 +415,7 @@ const handleSendMessage = async (text: string) => {
     console.log('🔵 [Frontend] Envoi du message:', text)
     console.log('🔵 [Frontend] Historique:', conversationHistory.length - 1, 'messages')
     console.log('🔵 [Frontend] Project ID:', currentProjectId.value)
-    console.log('🔵 [Frontend] Topic ID:', topicIdToSend)
+    console.log('🔵 [Frontend] Conversation ID:', conversationIdToSend)
 
     // Appeler l'API avec streaming
     const response = await fetch('/api/chat', {
@@ -443,7 +427,7 @@ const handleSendMessage = async (text: string) => {
         message: text,
         conversationHistory: conversationHistory.slice(0, -1), // Exclure le message actuel
         projectId: currentProjectId.value,
-        topicId: topicIdToSend,
+        conversationId: conversationIdToSend,
         locale: locale.value
       })
     })
@@ -609,4 +593,3 @@ useHead({
   title
 })
 </script>
-

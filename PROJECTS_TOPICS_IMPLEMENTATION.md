@@ -1,46 +1,46 @@
-# Projects and Topics Implementation
+# Projects and Conversations Implementation
 
-This document describes the implementation of the project and topic management system for conversations.
+This document describes the implementation of the project and conversation management system.
 
 ## Overview
 
 The system organizes conversations into a hierarchical structure:
-- **Projects** → **Topics** → **Conversations** → **Messages**
+- **Projects** → **Conversations** → **Messages**
 
-Each conversation is associated with a project and a topic, allowing users to organize their discussions by project and topic.
+Each conversation is associated with a project, allowing users to organize their discussions by project.
 
 ## Features
 
 ### 1. Project Management
 - Create, edit, and delete projects
-- Each project can have multiple topics
+- Each project can have multiple conversations
 - Default project is created automatically if none exists
 
-### 2. Topic Management
-- Create, edit, and delete topics within projects
-- Each topic maintains its own conversation thread
-- Default topic is created automatically for new projects
+### 2. Conversation Management
+- Create, edit, and delete conversations within projects
+- Each conversation maintains its own message thread
+- Conversations are auto-named based on the first message (first 50 characters)
+- Default conversation is created automatically for new projects
 
 ### 3. Sidebar Navigation
 - **Desktop**: Sidebar is always visible on the left
 - **Mobile**: Sidebar is hidden by default, accessible via toggle button
-- Shows hierarchical tree of projects and topics
-- Click to expand/collapse projects and view topics
-- Visual indication of current project and topic
+- Shows hierarchical tree of projects and conversations
+- Click to expand/collapse projects and view conversations
+- Visual indication of current project and conversation
 
-### 4. Topic Change Detection
-- When switching topics, if there are existing messages, user is prompted to confirm
-- Confirmation dialog asks if user wants to start a new topic thread
-- Each topic maintains its own conversation history
+### 4. Conversation Switching
+- When switching conversations, the message history for that conversation is loaded
+- Session memory is shared across all conversations in a project
 
 ### 5. Conversation History
-- Conversations are loaded per topic
-- When switching topics, the conversation history for that topic is loaded
-- Each topic has its own session memory
+- Conversations are loaded per project
+- When switching conversations, the message history for that conversation is loaded
+- Each project shares session memory across all its conversations
 
 ## Database Schema
 
-### New Tables
+### Tables
 
 #### `projects`
 - `id` (UUID, primary key)
@@ -49,19 +49,34 @@ Each conversation is associated with a project and a topic, allowing users to or
 - `updated_at` (TIMESTAMP)
 - `metadata` (JSONB)
 
-#### `topics`
+#### `conversations`
 - `id` (UUID, primary key)
 - `project_id` (UUID, foreign key to projects)
 - `name` (TEXT)
+- `session_id` (TEXT, unique)
 - `created_at` (TIMESTAMP)
 - `updated_at` (TIMESTAMP)
 - `metadata` (JSONB)
 
-### Updated Tables
+#### `messages`
+- `id` (UUID, primary key)
+- `conversation_id` (UUID, foreign key to conversations)
+- `content` (TEXT)
+- `role` (TEXT: 'user' or 'assistant')
+- `created_at` (TIMESTAMP)
+- `metadata` (JSONB)
 
-#### `conversations`
-- Added `project_id` (UUID, foreign key to projects, nullable)
-- Added `topic_id` (UUID, foreign key to topics, nullable)
+#### `challenges`
+- `id` (UUID, primary key)
+- `project_id` (UUID, foreign key to projects)
+- `document_type` (TEXT: 'action_plan', 'flash_diagnostic', 'other')
+- `title` (TEXT)
+- `content` (TEXT)
+- `expires_at` (TIMESTAMP)
+- `validated_at` (TIMESTAMP, nullable)
+- `created_at` (TIMESTAMP)
+- `updated_at` (TIMESTAMP)
+- `metadata` (JSONB)
 
 ## API Endpoints
 
@@ -71,76 +86,88 @@ Each conversation is associated with a project and a topic, allowing users to or
 - `PATCH /api/projects/:id` - Update a project
 - `DELETE /api/projects/:id` - Delete a project
 
-### Topics
-- `GET /api/topics` - List all topics (optionally filtered by project_id)
-- `POST /api/topics` - Create a new topic
-- `PATCH /api/topics/:id` - Update a topic
-- `DELETE /api/topics/:id` - Delete a topic
-
 ### Conversations
-- `GET /api/conversations` - Get conversation history (filtered by topic_id, project_id, or session_id)
+- `GET /api/conversations` - Get conversations (filtered by project_id) or messages (by conversation_id)
+- `POST /api/conversations` - Create a new conversation
+- `PATCH /api/conversations/:id` - Update a conversation
+- `DELETE /api/conversations/:id` - Delete a conversation
 
 ### Chat
-- `POST /api/chat` - Send a message (now requires `topicId` and accepts `projectId`)
+- `POST /api/chat` - Send a message (requires `conversationId` and accepts `projectId`)
+
+### Memory
+- `GET /api/memory/:projectId` - Get session memory for a project
+
+### Challenges
+- `GET /api/challenges` - Get challenges for a project
+- `POST /api/challenges` - Create a new challenge
+- `POST /api/challenges/:id/validate` - Validate a challenge
 
 ## Components
 
 ### `ProjectsSidebar.vue`
-- Displays the project/topic tree
-- Handles project and topic CRUD operations
+- Displays the project/conversation tree
+- Handles project and conversation CRUD operations
 - Responsive design (always visible on desktop, toggleable on mobile)
 - Edit/delete functionality with confirmation dialogs
 
 ### `pages/chat.vue`
-- Updated to integrate with projects/topics
-- Shows current project and topic in header
-- Handles topic switching with confirmation
-- Loads conversation history when switching topics
+- Updated to integrate with projects/conversations
+- Shows current project and conversation in header
+- Handles conversation switching
+- Loads message history when switching conversations
+
+### `DocumentsPanel.vue`
+- Displays project memory and challenges
+- Shows known and unknown project information
+- Loads challenges by project
 
 ## Composables
 
 ### `useProjects.ts`
-- Manages project and topic state
+- Manages project and conversation state
 - Provides methods for CRUD operations
-- Tracks current project and topic
-- Auto-creates default project/topic if none exist
+- Tracks current project and conversation
+- Auto-creates default project/conversation if none exist
 
 ## Setup Instructions
 
 1. **Run Database Migration**
    ```sql
-   -- Execute the migration file
-   supabase/migration_add_projects_topics.sql
+   -- For new installations, run:
+   supabase/schema.sql
+   
+   -- For existing installations with topics, run:
+   supabase/migration_remove_topics.sql
    ```
 
 2. **The system will automatically:**
    - Create a default project "New Project" if none exists
-   - Create a default topic "New Topic" for each project if none exists
-   - Associate conversations with the current topic
+   - Create a default conversation "New Conversation" for each project if none exists
+   - Auto-name conversations based on first message content
 
 ## Usage
 
 1. **Starting a Conversation**
-   - When you first open the chat, a default project and topic are created
+   - When you first open the chat, a default project and conversation are created
    - You can rename them by clicking the edit icon
 
 2. **Creating a New Project**
    - Click "Add project" in the sidebar
    - Enter a name for the project
-   - A default topic will be created automatically
+   - A default conversation will be created automatically
 
-3. **Creating a New Topic**
+3. **Creating a New Conversation**
    - Expand a project in the sidebar
-   - Click "Add topic" at the bottom of the topics list
-   - Enter a name for the topic
+   - Click "Add conversation" at the bottom of the conversations list
+   - Enter a name for the conversation (or leave default)
 
-4. **Switching Topics**
-   - Click on a different topic in the sidebar
-   - If you have messages in the current topic, you'll be asked to confirm
-   - The conversation history for the selected topic will load
+4. **Switching Conversations**
+   - Click on a different conversation in the sidebar
+   - The message history for the selected conversation will load
 
 5. **Editing/Deleting**
-   - Hover over a project or topic to see edit/delete buttons
+   - Hover over a project or conversation to see edit/delete buttons
    - Click edit to rename
    - Click delete to remove (with confirmation)
 
@@ -159,17 +186,16 @@ Each conversation is associated with a project and a topic, allowing users to or
 
 ## Technical Notes
 
-- Session IDs are now scoped to topics: `{baseSessionId}_topic_{topicId}`
-- This ensures each topic has its own session memory
-- Conversations are found/created based on `topic_id` and `session_id`
-- The system gracefully handles missing projects/topics by creating defaults
+- Session IDs are now scoped to projects: `{baseSessionId}_project_{projectId}`
+- This ensures all conversations in a project share the same session memory
+- Conversations are found/created based on `conversation_id`
+- The system gracefully handles missing projects/conversations by creating defaults
+- Conversations are auto-named from the first message content (first 50 chars)
 
 ## Future Enhancements
 
-- AI-powered topic change detection based on message content
-- Drag-and-drop reordering of projects/topics
-- Project/topic archiving
-- Search functionality across projects and topics
-- Export conversations by project/topic
-
-
+- AI-powered conversation summarization
+- Drag-and-drop reordering of projects/conversations
+- Project/conversation archiving
+- Search functionality across projects and conversations
+- Export conversations by project
