@@ -6,9 +6,9 @@
     "inputPlaceholder": "Écrivez votre message...",
     "send": "Envoyer",
     "fallbackWarning": "En raison d'un problème de connexion à la base de prompts, le système est basé sur une version antérieure",
-    "topicChangeTitle": "Passer à un nouveau sujet ?",
-    "topicChangeMessage": "Votre conversation actuelle concerne un sujet différent. Souhaitez-vous démarrer un nouveau fil de discussion ?",
-    "startNewTopic": "Démarrer un nouveau sujet"
+    "conversationChangeTitle": "Changer de conversation ?",
+    "conversationChangeMessage": "Vous êtes sur le point de passer à une autre conversation. Votre conversation actuelle sera sauvegardée.",
+    "switchConversation": "Changer"
   },
   "projects": {
     "title": "Projets",
@@ -18,15 +18,15 @@
     "delete": "Supprimer",
     "name": "Nom du projet",
     "defaultName": "Nouveau projet",
-    "deleteConfirm": "Supprimer le projet \"{name}\" ? Cela supprimera tous les sujets et conversations de ce projet."
+    "deleteConfirm": "Supprimer le projet \"{name}\" ? Cela supprimera toutes les conversations de ce projet."
   },
-  "topics": {
-    "add": "Ajouter un sujet",
+  "conversations": {
+    "add": "Ajouter une conversation",
     "edit": "Modifier",
     "delete": "Supprimer",
-    "name": "Nom du sujet",
-    "defaultName": "Nouveau sujet",
-    "deleteConfirm": "Supprimer le sujet \"{name}\" ? Cela supprimera toutes les conversations de ce sujet."
+    "name": "Nom de la conversation",
+    "defaultName": "Nouvelle conversation",
+    "deleteConfirm": "Supprimer la conversation \"{name}\" ? Cela supprimera tous les messages de cette conversation."
   },
   "common": {
     "loading": "Chargement...",
@@ -85,4 +85,3 @@
     }
   }
 }
-

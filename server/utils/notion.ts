@@ -8,6 +8,19 @@ function getCacheDuration(): number {
   return seconds * 1000 // Convertir en millisecondes
 }
 
+/**
+ * Formate un UUID Notion en ajoutant les tirets si nécessaire
+ * Notion attend les UUIDs au format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+ */
+function formatNotionId(id: string): string {
+  if (!id) return id
+  // Si l'ID n'a pas de tirets et fait 32 caractères, ajouter les tirets
+  if (id.length === 32 && !id.includes('-')) {
+    return `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20, 32)}`
+  }
+  return id
+}
+
 interface NotionConfig {
   apiKey: string
   pageId: string
@@ -21,11 +34,13 @@ async function fetchNotionPageContent(config: NotionConfig): Promise<string> {
   
   try {
     console.log('🔍 [NOTION] Fetching page content from Notion...')
-    console.log('🔍 [NOTION] Page ID:', config.pageId)
+    // Formater l'ID pour s'assurer qu'il a les tirets au bon format
+    const formattedPageId = formatNotionId(config.pageId)
+    console.log('🔍 [NOTION] Page ID:', formattedPageId)
     
     // Récupérer les blocs de la page
     const response = await notion.blocks.children.list({
-      block_id: config.pageId,
+      block_id: formattedPageId,
       page_size: 100
     })
     
@@ -327,12 +342,15 @@ function notionRowToKnowledgeEntry(row: any): KnowledgeEntry {
  */
 export async function getKnowledgeBase(useCache: boolean = true): Promise<KnowledgeEntry[]> {
   const apiKey = process.env.NOTION_API_KEY
-  const databaseId = process.env.NOTION_KNOWLEDGE_BASE
+  const rawDatabaseId = process.env.NOTION_KNOWLEDGE_BASE
   
-  if (!apiKey || !databaseId) {
+  if (!apiKey || !rawDatabaseId) {
     console.warn('⚠️ [NOTION] NOTION_API_KEY or NOTION_KNOWLEDGE_BASE not configured')
     return []
   }
+  
+  // Formater l'ID pour s'assurer qu'il a les tirets au bon format
+  const databaseId = formatNotionId(rawDatabaseId)
   
   // Check cache
   const now = Date.now()
@@ -354,12 +372,13 @@ export async function getKnowledgeBase(useCache: boolean = true): Promise<Knowle
     let startCursor: string | undefined = undefined
     
     while (hasMore) {
-      // @ts-ignore - Notion SDK types may be incomplete
-      const response = await notion.databases.query({
-        database_id: databaseId,
+      // In Notion SDK v5, databases.query was replaced by dataSources.query
+      // The database_id parameter is now data_source_id
+      const response = await notion.dataSources.query({
+        data_source_id: databaseId,
         start_cursor: startCursor,
         page_size: 100
-      }) as any
+      })
       
       for (const row of response.results) {
         const entry = notionRowToKnowledgeEntry(row)

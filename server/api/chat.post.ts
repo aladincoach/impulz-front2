@@ -12,12 +12,12 @@ import { getCapabilityPrompt } from '../utils/capabilities'
 import { getSupabaseClient } from '../utils/supabase'
 
 export default defineEventHandler(async (event) => {
-  const { message, conversationHistory, sessionId: providedSessionId, projectId, topicId, locale } = await readBody(event)
+  const { message, conversationHistory, sessionId: providedSessionId, projectId, conversationId, locale } = await readBody(event)
 
   console.log('🔵 [API] Message received:', message)
   console.log('🔵 [API] History:', conversationHistory?.length || 0, 'messages')
   console.log('🔵 [API] Project ID:', projectId)
-  console.log('🔵 [API] Topic ID:', topicId)
+  console.log('🔵 [API] Conversation ID:', conversationId)
 
   if (!message) {
     throw createError({
@@ -26,10 +26,10 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  if (!topicId) {
+  if (!conversationId) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'Topic ID is required. Please select or create a topic.'
+      statusMessage: 'Conversation ID is required. Please select or create a conversation.'
     })
   }
 
@@ -45,10 +45,12 @@ export default defineEventHandler(async (event) => {
   })
 
   try {
-    // Generate session ID that includes topic ID for topic-specific memory
-    // This ensures each topic has its own session memory
-    const baseSessionId = providedSessionId || generateSessionId(conversationHistory)
-    const sessionId = topicId ? `${baseSessionId}_topic_${topicId}` : baseSessionId
+    // Generate session ID scoped to project for shared memory across conversations
+    // Use ONLY the projectId to ensure all conversations in a project share the same memory
+    // This is critical - the sessionId must be identical for all conversations in the same project
+    const sessionId = projectId 
+      ? `project_${projectId}` 
+      : (providedSessionId || generateSessionId(conversationHistory))
     const session = getSession(sessionId)
     
     console.log('🔄 [SESSION] ID:', sessionId)
@@ -57,59 +59,72 @@ export default defineEventHandler(async (event) => {
 
     // Get or create conversation in Supabase
     const supabase = getSupabaseClient(event)
-    let conversationId: string | null = null
+    let dbConversationId: string = conversationId
+    let isFirstMessage = false
     
     try {
-      // Try to find existing conversation by topic_id and session_id
-      // This ensures each topic has its own conversation thread
+      // Check if conversation exists and get its details
       const { data: existingConversation, error: findError } = await supabase
         .from('conversations')
-        .select('id')
-        .eq('topic_id', topicId)
-        .eq('session_id', sessionId)
-        .single() as { data: { id: string } | null; error: any }
+        .select('id, name, session_id')
+        .eq('id', conversationId)
+        .single() as { data: { id: string; name: string | null; session_id: string } | null; error: any }
 
-      if (existingConversation) {
-        conversationId = existingConversation.id
-        console.log('💾 [SUPABASE] Found existing conversation:', conversationId)
-      } else {
-        // Create new conversation for this topic
-        const { data: newConversation, error: createError } = await supabase
-          .from('conversations')
-          .insert({ 
-            session_id: sessionId,
-            project_id: projectId || null,
-            topic_id: topicId
-          } as any)
-          .select('id')
-          .single() as { data: { id: string } | null; error: any }
-
-        if (createError) {
-          console.error('❌ [SUPABASE] Error creating conversation:', createError)
-        } else if (newConversation) {
-          conversationId = newConversation.id
-          console.log('💾 [SUPABASE] Created new conversation:', conversationId)
-        }
+      if (findError || !existingConversation) {
+        console.error('❌ [SUPABASE] Conversation not found:', conversationId)
+        throw createError({
+          statusCode: 404,
+          statusMessage: 'Conversation not found'
+        })
       }
+
+      dbConversationId = existingConversation.id
+      console.log('💾 [SUPABASE] Found existing conversation:', dbConversationId)
+
+      // Check if this is the first message in the conversation
+      const { count, error: countError } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('conversation_id', dbConversationId)
+
+      isFirstMessage = !countError && count === 0
+      console.log('💾 [SUPABASE] Is first message:', isFirstMessage)
 
       // Save user message to Supabase
-      if (conversationId) {
-        const { error: messageError } = await supabase
-          .from('messages')
-          .insert({
-            conversation_id: conversationId,
-            content: message,
-            role: 'user'
-          } as any)
+      const { error: messageError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: dbConversationId,
+          content: message,
+          role: 'user'
+        } as any)
 
-        if (messageError) {
-          console.error('❌ [SUPABASE] Error saving user message:', messageError)
+      if (messageError) {
+        console.error('❌ [SUPABASE] Error saving user message:', messageError)
+      } else {
+        console.log('💾 [SUPABASE] Saved user message')
+      }
+
+      // Auto-name conversation based on first message (first 50 chars)
+      if (isFirstMessage && existingConversation.name === 'New Conversation') {
+        const autoName = message.substring(0, 50).trim() + (message.length > 50 ? '...' : '')
+        const { error: updateError } = await supabase
+          .from('conversations')
+          .update({ name: autoName } as any)
+          .eq('id', dbConversationId)
+
+        if (updateError) {
+          console.error('❌ [SUPABASE] Error auto-naming conversation:', updateError)
         } else {
-          console.log('💾 [SUPABASE] Saved user message')
+          console.log('💾 [SUPABASE] Auto-named conversation:', autoName)
         }
       }
-    } catch (supabaseError) {
-      // Don't fail the request if Supabase fails, just log it
+    } catch (supabaseError: any) {
+      // Re-throw if it's a 404 error
+      if (supabaseError.statusCode === 404) {
+        throw supabaseError
+      }
+      // Don't fail the request if other Supabase operations fail, just log it
       console.error('❌ [SUPABASE] Error in Supabase operations:', supabaseError)
     }
 
@@ -194,7 +209,7 @@ export default defineEventHandler(async (event) => {
           console.log('✅ [API] Streaming complete -', chunkCount, 'chunks sent')
           
           // Post-process: update session state from response
-          const { cleanResponse, memoryUpdated, backlogUpdated } = await processResponse(sessionId, fullResponse, projectId, topicId, event)
+          const { cleanResponse, memoryUpdated, backlogUpdated } = await processResponse(sessionId, fullResponse, projectId, event)
           
           if (memoryUpdated) {
             console.log('🧠 [SESSION] Memory updated from response')
@@ -204,12 +219,12 @@ export default defineEventHandler(async (event) => {
           }
 
           // Save assistant response to Supabase
-          if (conversationId && fullResponse) {
+          if (dbConversationId && fullResponse) {
             try {
               const { error: assistantMessageError } = await supabase
                 .from('messages')
                 .insert({
-                  conversation_id: conversationId,
+                  conversation_id: dbConversationId,
                   content: fullResponse,
                   role: 'assistant'
                 } as any)
@@ -225,7 +240,7 @@ export default defineEventHandler(async (event) => {
           }
 
           // Create challenge if a capability was triggered (action plan or diagnostic)
-          if (capabilityCheck.capability && fullResponse && topicId) {
+          if (capabilityCheck.capability && fullResponse && projectId) {
             try {
               // Check if this is an action plan or diagnostic capability
               const isActionPlan = capabilityCheck.capability === 'action_plan'
@@ -255,15 +270,14 @@ export default defineEventHandler(async (event) => {
                 console.log('📄 [CHALLENGES] Creating document:', {
                   type: isActionPlan ? 'action_plan' : 'flash_diagnostic',
                   title: title.substring(0, 50),
-                  topicId
+                  projectId
                 })
 
-                // Create challenge directly using Supabase
+                // Create challenge directly using Supabase (linked to project only)
                 const { data: newChallenge, error: challengeError } = await supabase
                   .from('challenges')
                   .insert({
-                    topic_id: topicId,
-                    project_id: projectId || null,
+                    project_id: projectId,
                     document_type: isActionPlan ? 'action_plan' : 'flash_diagnostic',
                     title,
                     content: fullResponse,

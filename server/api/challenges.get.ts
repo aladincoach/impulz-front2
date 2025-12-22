@@ -1,33 +1,27 @@
 import { getSupabaseClient } from '../utils/supabase'
 
 /**
- * Get challenges/documents for a topic
+ * Get challenges/documents for a project
  */
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
-  const { topicId, projectId } = query
+  const { projectId } = query
 
-  if (!topicId) {
+  if (!projectId) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'topicId is required'
+      statusMessage: 'projectId is required'
     })
   }
 
   const supabase = getSupabaseClient(event)
 
   try {
-    let queryBuilder = supabase
+    const { data, error } = await supabase
       .from('challenges')
       .select('*')
-      .eq('topic_id', topicId)
-      .order('created_at', { ascending: false })
-
-    if (projectId) {
-      queryBuilder = queryBuilder.eq('project_id', projectId)
-    }
-
-    const { data, error } = await queryBuilder as { data: any[]; error: any }
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false }) as { data: any[]; error: any }
 
     if (error) {
       console.error('❌ [CHALLENGES] Error fetching challenges:', error)
@@ -46,5 +40,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-
-

@@ -272,7 +272,6 @@ export async function processResponse(
   sessionId: string,
   response: string,
   projectId?: string | null,
-  topicId?: string | null,
   event?: any
 ): Promise<{ cleanResponse: string; memoryUpdated: boolean; backlogUpdated: boolean }> {
   let memoryUpdated = false
@@ -286,9 +285,9 @@ export async function processResponse(
     console.log('🧠 [REASONING] Memory updated:', JSON.stringify(memoryUpdates))
     
     // If project info was updated, create/update project synthesis document
-    if ((memoryUpdates.project || memoryUpdates.progress || memoryUpdates.user) && projectId && topicId && event) {
+    if ((memoryUpdates.project || memoryUpdates.progress || memoryUpdates.user) && projectId && event) {
       try {
-        await updateProjectSynthesisDocument(projectId, topicId, sessionId, event)
+        await updateProjectSynthesisDocument(projectId, sessionId, event)
       } catch (error) {
         console.warn('⚠️ [REASONING] Failed to update project synthesis document:', error)
       }
@@ -331,7 +330,6 @@ export { formatKnowledgeEntry }
  */
 async function updateProjectSynthesisDocument(
   projectId: string,
-  topicId: string,
   sessionId: string,
   event: any
 ): Promise<void> {
@@ -342,12 +340,11 @@ async function updateProjectSynthesisDocument(
   // Format the project information as markdown
   const formattedContent = formatProjectSynthesis(memory)
   
-  // Check if a project synthesis document already exists for this project/topic
+  // Check if a project synthesis document already exists for this project
   const { data: existingDocs } = await supabase
     .from('challenges')
     .select('id')
     .eq('project_id', projectId)
-    .eq('topic_id', topicId)
     .eq('document_type', 'other')
     .ilike('title', '%project synthesis%')
     .limit(1) as { data: { id: string }[] | null; error: any }
@@ -377,7 +374,6 @@ async function updateProjectSynthesisDocument(
     const { error } = await supabase
       .from('challenges')
       .insert({
-        topic_id: topicId,
         project_id: projectId,
         document_type: 'other',
         title: 'Project Synthesis',
