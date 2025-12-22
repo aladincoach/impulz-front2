@@ -40,7 +40,7 @@
       </div>
 
       <!-- Project Info Section -->
-      <div v-if="projectMemory && currentTopicId" class="p-4 border-b border-gray-200 bg-gray-50">
+      <div v-if="projectMemory && currentProjectId" class="p-4 border-b border-gray-200 bg-gray-50">
         <h3 class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -230,8 +230,7 @@ const { t } = useI18n()
 
 interface Challenge {
   id: string
-  topic_id: string
-  project_id: string | null
+  project_id: string
   document_type: 'action_plan' | 'flash_diagnostic' | 'other'
   title: string
   content: string
@@ -250,7 +249,7 @@ const emit = defineEmits<{
   (e: 'update:isOpen', value: boolean): void
 }>()
 
-const { currentTopicId } = useProjects()
+const { currentProjectId } = useProjects()
 
 const isOpen = ref(props.isOpen ?? false)
 const challenges = ref<Challenge[]>([])
@@ -283,12 +282,12 @@ watch(isOpen, (newVal) => {
   emit('update:isOpen', newVal)
 })
 
-// Watch for topic changes to reload challenges and memory
-watch(currentTopicId, async (newTopicId) => {
-  if (newTopicId) {
+// Watch for project changes to reload challenges and memory
+watch(currentProjectId, async (newProjectId) => {
+  if (newProjectId) {
     await Promise.all([
-      loadChallenges(newTopicId),
-      loadProjectMemory(newTopicId)
+      loadChallenges(newProjectId),
+      loadProjectMemory(newProjectId)
     ])
   } else {
     challenges.value = []
@@ -297,13 +296,13 @@ watch(currentTopicId, async (newTopicId) => {
   }
 }, { immediate: true })
 
-// Refresh when panel opens or topic changes
-watch([currentTopicId, isOpen], async ([topicId, open]) => {
-  if (topicId && open) {
-    // Refresh immediately when panel opens or topic changes
+// Refresh when panel opens or project changes
+watch([currentProjectId, isOpen], async ([projectId, open]) => {
+  if (projectId && open) {
+    // Refresh immediately when panel opens or project changes
     await Promise.all([
-      loadChallenges(topicId),
-      loadProjectMemory(topicId)
+      loadChallenges(projectId),
+      loadProjectMemory(projectId)
     ])
   }
 })
@@ -387,11 +386,11 @@ const unknownFields = computed(() => {
     .filter((field): field is NonNullable<typeof field> => field !== null)
 })
 
-// Load project memory for current topic
-const loadProjectMemory = async (topicId: string) => {
+// Load project memory for current project
+const loadProjectMemory = async (projectId: string) => {
   isLoadingMemory.value = true
   try {
-    const response = await fetch(`/api/memory/${topicId}`)
+    const response = await fetch(`/api/memory/${projectId}`)
     if (response.ok) {
       const data = await response.json()
       projectMemory.value = data.memory || null
@@ -413,11 +412,11 @@ const loadProjectMemory = async (topicId: string) => {
   }
 }
 
-// Load challenges for current topic
-const loadChallenges = async (topicId: string) => {
+// Load challenges for current project
+const loadChallenges = async (projectId: string) => {
   isLoading.value = true
   try {
-    const response = await fetch(`/api/challenges?topicId=${topicId}`)
+    const response = await fetch(`/api/challenges?projectId=${projectId}`)
     if (response.ok) {
       const data = await response.json()
       const previousCount = challenges.value.length
@@ -537,9 +536,9 @@ const handleClickOutside = (event: MouseEvent) => {
 
 // Listen for memory refresh events
 const handleMemoryRefresh = async () => {
-  if (currentTopicId.value && isOpen.value) {
+  if (currentProjectId.value && isOpen.value) {
     console.log('🔄 [DocumentsPanel] Refreshing memory after message')
-    await loadProjectMemory(currentTopicId.value)
+    await loadProjectMemory(currentProjectId.value)
   }
 }
 
@@ -555,10 +554,10 @@ onMounted(async () => {
     isOpen.value = true
   }
   
-  if (currentTopicId.value) {
+  if (currentProjectId.value) {
     await Promise.all([
-      loadChallenges(currentTopicId.value),
-      loadProjectMemory(currentTopicId.value)
+      loadChallenges(currentProjectId.value),
+      loadProjectMemory(currentProjectId.value)
     ])
   }
 })
@@ -595,4 +594,3 @@ onUnmounted(() => {
   margin: 0.25rem 0;
 }
 </style>
-

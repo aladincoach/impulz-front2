@@ -3,14 +3,35 @@ import { getSupabaseClient } from '../utils/supabase'
 export default defineEventHandler(async (event) => {
   try {
     const query = getQuery(event)
-    const topicId = query.topic_id as string | undefined
     const projectId = query.project_id as string | undefined
-    const sessionId = query.session_id as string | undefined
+    const conversationId = query.conversation_id as string | undefined
+    const listOnly = query.list === 'true'
 
-    if (!topicId && !projectId && !sessionId) {
+    // If listOnly is true, return list of conversations for a project (for sidebar)
+    if (listOnly && projectId) {
+      const supabase = getSupabaseClient(event)
+      const { data: conversations, error } = await supabase
+        .from('conversations')
+        .select('id, name, project_id, created_at, updated_at')
+        .eq('project_id', projectId)
+        .order('updated_at', { ascending: false }) as { data: any[]; error: any }
+
+      if (error) {
+        console.error('Error fetching conversations:', error)
+        throw createError({
+          statusCode: 500,
+          statusMessage: 'Failed to fetch conversations'
+        })
+      }
+
+      return { conversations: conversations || [] }
+    }
+
+    // Otherwise, get conversation messages (for loading chat history)
+    if (!conversationId && !projectId) {
       throw createError({
         statusCode: 400,
-        statusMessage: 'topic_id, project_id, or session_id is required'
+        statusMessage: 'conversation_id or project_id is required'
       })
     }
 
@@ -22,14 +43,11 @@ export default defineEventHandler(async (event) => {
       .select('id')
       .limit(1)
 
-    if (topicId) {
-      queryBuilder = queryBuilder.eq('topic_id', topicId)
+    if (conversationId) {
+      queryBuilder = queryBuilder.eq('id', conversationId)
     }
-    if (projectId) {
+    if (projectId && !conversationId) {
       queryBuilder = queryBuilder.eq('project_id', projectId)
-    }
-    if (sessionId) {
-      queryBuilder = queryBuilder.eq('session_id', sessionId)
     }
 
     const { data: conversation, error: convError } = await queryBuilder.single() as { data: { id: string } | null; error: any }
@@ -74,5 +92,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-
-

@@ -6,9 +6,9 @@
     "inputPlaceholder": "Write your message...",
     "send": "Send",
     "fallbackWarning": "Due to connection issues to the prompt database, the system is based on a previous version",
-    "topicChangeTitle": "Switch to a new topic?",
-    "topicChangeMessage": "Your current conversation is about a different topic. Would you like to start a new topic thread?",
-    "startNewTopic": "Start New Topic"
+    "conversationChangeTitle": "Switch conversation?",
+    "conversationChangeMessage": "You are about to switch to a different conversation. Your current conversation will be saved.",
+    "switchConversation": "Switch"
   },
   "projects": {
     "title": "Projects",
@@ -18,15 +18,15 @@
     "delete": "Delete",
     "name": "Project name",
     "defaultName": "New Project",
-    "deleteConfirm": "Delete project \"{name}\"? This will delete all topics and conversations in this project."
+    "deleteConfirm": "Delete project \"{name}\"? This will delete all conversations in this project."
   },
-  "topics": {
-    "add": "Add topic",
+  "conversations": {
+    "add": "Add conversation",
     "edit": "Edit",
     "delete": "Delete",
-    "name": "Topic name",
-    "defaultName": "New Topic",
-    "deleteConfirm": "Delete topic \"{name}\"? This will delete all conversations in this topic."
+    "name": "Conversation name",
+    "defaultName": "New Conversation",
+    "deleteConfirm": "Delete conversation \"{name}\"? This will delete all messages in this conversation."
   },
   "common": {
     "loading": "Loading...",
@@ -85,4 +85,3 @@
     }
   }
 }
-

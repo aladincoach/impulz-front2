@@ -81,38 +81,38 @@
             </div>
           </div>
 
-          <!-- Topics list -->
+          <!-- Conversations list -->
           <div
             v-if="expandedProjects.has(project.id)"
             class="ml-6 mt-1 space-y-1"
           >
             <div
-              v-for="topic in project.topics"
-              :key="topic.id"
+              v-for="conversation in project.conversations"
+              :key="conversation.id"
               class="flex items-center justify-between group p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
-              :class="{ 'bg-blue-50': currentTopicId === topic.id }"
-              @click="handleTopicClick(topic.id)"
+              :class="{ 'bg-blue-50': currentConversationId === conversation.id }"
+              @click="handleConversationClick(conversation.id)"
             >
               <span
                 class="text-sm text-gray-700 truncate flex-1"
-                :class="{ 'text-blue-600 font-medium': currentTopicId === topic.id }"
+                :class="{ 'text-blue-600 font-medium': currentConversationId === conversation.id }"
               >
-                {{ topic.name }}
+                {{ conversation.name }}
               </span>
               <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
-                  @click.stop="editTopic(topic)"
+                  @click.stop="editConversation(conversation)"
                   class="p-1 hover:bg-gray-200 rounded"
-                  :title="$t('topics.edit', 'Edit')"
+                  :title="$t('conversations.edit', 'Edit')"
                 >
                   <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                 </button>
                 <button
-                  @click.stop="deleteTopic(topic)"
+                  @click.stop="deleteConversation(conversation)"
                   class="p-1 hover:bg-red-100 rounded"
-                  :title="$t('topics.delete', 'Delete')"
+                  :title="$t('conversations.delete', 'Delete')"
                 >
                   <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -121,13 +121,13 @@
               </div>
             </div>
             <button
-              @click.stop="addTopic(project.id)"
+              @click.stop="addConversation(project.id)"
               class="w-full text-left text-xs text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-50 flex items-center gap-1"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
               </svg>
-              {{ $t('topics.add', 'Add topic') }}
+              {{ $t('conversations.add', 'Add conversation') }}
             </button>
           </div>
         </div>
@@ -187,33 +187,33 @@
       </div>
     </div>
 
-    <!-- Add Topic Dialog -->
+    <!-- Add Conversation Dialog -->
     <div
-      v-if="addingTopic"
+      v-if="addingConversation"
       class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
-      @click.self="cancelAddTopic"
+      @click.self="cancelAddConversation"
     >
       <div class="bg-white rounded-lg p-6 max-w-md w-full" @click.stop>
-        <h3 class="text-lg font-semibold mb-4">{{ $t('topics.add', 'Add topic') }}</h3>
+        <h3 class="text-lg font-semibold mb-4">{{ $t('conversations.add', 'Add conversation') }}</h3>
         <input
-          v-model="newTopicName"
-          @keyup.enter="confirmAddTopic"
-          @keyup.escape="cancelAddTopic"
-          :ref="el => newTopicInput = el as HTMLInputElement"
+          v-model="newConversationName"
+          @keyup.enter="confirmAddConversation"
+          @keyup.escape="cancelAddConversation"
+          :ref="el => newConversationInput = el as HTMLInputElement"
           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          :placeholder="$t('topics.name', 'Topic name')"
+          :placeholder="$t('conversations.name', 'Conversation name')"
         />
         <div class="flex justify-end gap-2 mt-4">
           <button
-            @click="cancelAddTopic"
+            @click="cancelAddConversation"
             class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
           >
             {{ $t('common.cancel', 'Cancel') }}
           </button>
           <button
-            @click="confirmAddTopic"
+            @click="confirmAddConversation"
             class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            :disabled="!newTopicName.trim()"
+            :disabled="!newConversationName.trim()"
           >
             {{ $t('common.save', 'Save') }}
           </button>
@@ -253,30 +253,30 @@
       </div>
     </div>
 
-    <!-- Edit Topic Dialog -->
+    <!-- Edit Conversation Dialog -->
     <div
-      v-if="editingTopic"
+      v-if="editingConversation"
       class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
-      @click.self="editingTopic = null"
+      @click.self="editingConversation = null"
     >
       <div class="bg-white rounded-lg p-6 max-w-md w-full" @click.stop>
-        <h3 class="text-lg font-semibold mb-4">{{ $t('topics.edit', 'Edit Topic') }}</h3>
+        <h3 class="text-lg font-semibold mb-4">{{ $t('conversations.edit', 'Edit Conversation') }}</h3>
         <input
-          v-model="editingTopic.name"
-          @keyup.enter="saveTopic"
-          @keyup.escape="editingTopic = null"
+          v-model="editingConversation.name"
+          @keyup.enter="saveConversation"
+          @keyup.escape="editingConversation = null"
           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          :placeholder="$t('topics.name', 'Topic name')"
+          :placeholder="$t('conversations.name', 'Conversation name')"
         />
         <div class="flex justify-end gap-2 mt-4">
           <button
-            @click="editingTopic = null"
+            @click="editingConversation = null"
             class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
           >
             {{ $t('common.cancel', 'Cancel') }}
           </button>
           <button
-            @click="saveTopic"
+            @click="saveConversation"
             class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             {{ $t('common.save', 'Save') }}
@@ -290,7 +290,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useProjects, type Project, type Topic } from '~/composables/useProjects'
+import { useProjects, type Project, type Conversation } from '~/composables/useProjects'
 
 const { t } = useI18n()
 
@@ -301,36 +301,36 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:isOpen', value: boolean): void
   (e: 'project-changed', projectId: string): void
-  (e: 'topic-changed', topicId: string): void
+  (e: 'conversation-changed', conversationId: string): void
 }>()
 
 const {
   projectTree,
   currentProjectId,
-  currentTopicId,
+  currentConversationId,
   isLoading,
   loadProjects,
   createProject,
   updateProject,
   deleteProject: deleteProjectAction,
-  createTopic,
-  updateTopic,
-  deleteTopic: deleteTopicAction,
+  createConversation,
+  updateConversation,
+  deleteConversation: deleteConversationAction,
   setCurrentProject,
-  setCurrentTopic
+  setCurrentConversation
 } = useProjects()
 
 const isOpen = ref(props.isOpen ?? false)
 const expandedProjects = ref<Set<string>>(new Set())
 const editingProject = ref<Project | null>(null)
-const editingTopic = ref<Topic | null>(null)
+const editingConversation = ref<Conversation | null>(null)
 const addingProject = ref(false)
-const addingTopic = ref(false)
+const addingConversation = ref(false)
 const newProjectName = ref('')
-const newTopicName = ref('')
-const newTopicProjectId = ref<string | null>(null)
+const newConversationName = ref('')
+const newConversationProjectId = ref<string | null>(null)
 const newProjectInput = ref<HTMLInputElement | null>(null)
-const newTopicInput = ref<HTMLInputElement | null>(null)
+const newConversationInput = ref<HTMLInputElement | null>(null)
 
 // Detect mobile - use composable for reactivity
 const isMobile = ref(false)
@@ -390,10 +390,10 @@ const handleProjectClick = (projectId: string) => {
   }
 }
 
-// Handle topic click
-const handleTopicClick = (topicId: string) => {
-  setCurrentTopic(topicId)
-  emit('topic-changed', topicId)
+// Handle conversation click
+const handleConversationClick = (conversationId: string) => {
+  setCurrentConversation(conversationId)
+  emit('conversation-changed', conversationId)
   if (isMobile.value) {
     isOpen.value = false
   }
@@ -451,60 +451,59 @@ const deleteProject = async (project: Project) => {
   }
 }
 
-// Add topic
-const addTopic = (projectId: string) => {
-  newTopicName.value = t('topics.defaultName', 'New Topic')
-  newTopicProjectId.value = projectId
-  addingTopic.value = true
+// Add conversation
+const addConversation = (projectId: string) => {
+  newConversationName.value = t('conversations.defaultName', 'New Conversation')
+  newConversationProjectId.value = projectId
+  addingConversation.value = true
   nextTick(() => {
-    if (newTopicInput.value) {
-      newTopicInput.value.focus()
-      newTopicInput.value.select()
+    if (newConversationInput.value) {
+      newConversationInput.value.focus()
+      newConversationInput.value.select()
     }
   })
 }
 
-const confirmAddTopic = async () => {
-  const name = newTopicName.value.trim()
-  if (!name || !newTopicProjectId.value) return
+const confirmAddConversation = async () => {
+  const name = newConversationName.value.trim()
+  if (!name || !newConversationProjectId.value) return
   
-  addingTopic.value = false
-  const projectId = newTopicProjectId.value
-  const topic = await createTopic(projectId, name)
-  if (topic) {
+  addingConversation.value = false
+  const projectId = newConversationProjectId.value
+  const conversation = await createConversation(projectId, name)
+  if (conversation) {
     expandedProjects.value.add(projectId)
-    setCurrentTopic(topic.id)
-    emit('topic-changed', topic.id)
+    setCurrentConversation(conversation.id)
+    emit('conversation-changed', conversation.id)
   }
-  newTopicName.value = ''
-  newTopicProjectId.value = null
+  newConversationName.value = ''
+  newConversationProjectId.value = null
 }
 
-const cancelAddTopic = () => {
-  addingTopic.value = false
-  newTopicName.value = ''
-  newTopicProjectId.value = null
+const cancelAddConversation = () => {
+  addingConversation.value = false
+  newConversationName.value = ''
+  newConversationProjectId.value = null
 }
 
-// Edit topic
-const editTopic = (topic: Topic) => {
-  editingTopic.value = { ...topic }
+// Edit conversation
+const editConversation = (conversation: Conversation) => {
+  editingConversation.value = { ...conversation }
 }
 
-// Save topic
-const saveTopic = async () => {
-  if (editingTopic.value) {
-    await updateTopic(editingTopic.value.id, editingTopic.value.name)
-    editingTopic.value = null
+// Save conversation
+const saveConversation = async () => {
+  if (editingConversation.value) {
+    await updateConversation(editingConversation.value.id, editingConversation.value.name)
+    editingConversation.value = null
   }
 }
 
-// Delete topic
-const deleteTopic = async (topic: Topic) => {
-  const message = t('topics.deleteConfirm', { name: topic.name })
+// Delete conversation
+const deleteConversation = async (conversation: Conversation) => {
+  const message = t('conversations.deleteConfirm', { name: conversation.name })
   if (confirm(message)) {
-    await deleteTopicAction(topic.id)
+    await deleteConversationAction(conversation.id)
   }
 }
 </script>
-

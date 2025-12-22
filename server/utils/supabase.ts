@@ -39,7 +39,8 @@ export function getSupabaseClient(event?: any) {
  */
 export interface Conversation {
   id: string
-  session_id: string
+  project_id: string
+  name: string
   created_at: string
   updated_at: string
   metadata?: Record<string, any>
@@ -54,15 +55,23 @@ export interface Message {
   metadata?: Record<string, any>
 }
 
+export interface ProjectMemory {
+  project_id: string
+  memory: Record<string, any>
+  questions: any[]
+  created_at: string
+  updated_at: string
+}
+
 /**
- * Get conversation by session ID
+ * Get conversation by ID
  */
-export async function getConversationBySessionId(sessionId: string, event?: any): Promise<Conversation | null> {
+export async function getConversationById(conversationId: string, event?: any): Promise<Conversation | null> {
   const supabase = getSupabaseClient(event)
   const { data, error } = await supabase
     .from('conversations')
     .select('*')
-    .eq('session_id', sessionId)
+    .eq('id', conversationId)
     .single() as { data: Conversation | null; error: any }
 
   if (error || !data) {
@@ -93,16 +102,10 @@ export async function getConversationMessages(conversationId: string, event?: an
 /**
  * Get conversation history formatted for the chat API
  */
-export async function getConversationHistory(sessionId: string, event?: any): Promise<Array<{ text: string; isUser: boolean }>> {
-  const conversation = await getConversationBySessionId(sessionId, event)
-  if (!conversation) {
-    return []
-  }
-
-  const messages = await getConversationMessages(conversation.id, event)
+export async function getConversationHistory(conversationId: string, event?: any): Promise<Array<{ text: string; isUser: boolean }>> {
+  const messages = await getConversationMessages(conversationId, event)
   return messages.map(msg => ({
     text: msg.content,
     isUser: msg.role === 'user'
   }))
 }
-
