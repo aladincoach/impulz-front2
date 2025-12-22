@@ -17,15 +17,11 @@ export default defineEventHandler(async (event) => {
   const supabase = getSupabaseClient(event)
 
   try {
-    // Generate a unique session_id for this conversation
-    const sessionId = `conv_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-    
     const { data, error } = await supabase
       .from('conversations')
       .insert({
         project_id,
-        name: name || 'New Conversation',
-        session_id: sessionId
+        name: name || 'New Conversation'
       } as any)
       .select()
       .single() as { data: any; error: any }
@@ -47,4 +43,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-

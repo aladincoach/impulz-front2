@@ -1,7 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { 
   getSession, 
-  generateSessionId,
   parseMemoryUpdates,
   parseQuestionBacklog,
   updateMemory,
@@ -12,7 +11,7 @@ import { getCapabilityPrompt } from '../utils/capabilities'
 import { getSupabaseClient } from '../utils/supabase'
 
 export default defineEventHandler(async (event) => {
-  const { message, conversationHistory, sessionId: providedSessionId, projectId, conversationId, locale } = await readBody(event)
+  const { message, conversationHistory, projectId, conversationId, locale } = await readBody(event)
 
   console.log('🔵 [API] Message received:', message)
   console.log('🔵 [API] History:', conversationHistory?.length || 0, 'messages')
@@ -33,6 +32,13 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  if (!projectId) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Project ID is required. Please select a project.'
+    })
+  }
+
   const config = useRuntimeConfig(event)
   const useCache = config.systemPromptCache
   const apiKey = process.env.ANTHROPIC_API_KEY
@@ -45,15 +51,11 @@ export default defineEventHandler(async (event) => {
   })
 
   try {
-    // Generate session ID scoped to project for shared memory across conversations
-    // Use ONLY the projectId to ensure all conversations in a project share the same memory
-    // This is critical - the sessionId must be identical for all conversations in the same project
-    const sessionId = projectId 
-      ? `project_${projectId}` 
-      : (providedSessionId || generateSessionId(conversationHistory))
-    const session = getSession(sessionId)
+    // Load session from Supabase (or cache) - now async
+    // Uses projectId as the key to ensure all conversations in a project share memory
+    const session = await getSession(projectId, event)
     
-    console.log('🔄 [SESSION] ID:', sessionId)
+    console.log('🔄 [SESSION] Project ID:', projectId)
     console.log('🔄 [SESSION] Memory:', JSON.stringify(session.memory.project, null, 2))
     console.log('🔄 [SESSION] Questions pending:', session.questions.filter(q => q.status === 'pending').length)
 
@@ -66,9 +68,9 @@ export default defineEventHandler(async (event) => {
       // Check if conversation exists and get its details
       const { data: existingConversation, error: findError } = await supabase
         .from('conversations')
-        .select('id, name, session_id')
+        .select('id, name')
         .eq('id', conversationId)
-        .single() as { data: { id: string; name: string | null; session_id: string } | null; error: any }
+        .single() as { data: { id: string; name: string | null } | null; error: any }
 
       if (findError || !existingConversation) {
         console.error('❌ [SUPABASE] Conversation not found:', conversationId)
@@ -129,11 +131,11 @@ export default defineEventHandler(async (event) => {
     }
 
     // Check if a capability should be triggered
-    const capabilityCheck = shouldTriggerCapability(sessionId, message)
+    const capabilityCheck = shouldTriggerCapability(projectId, message)
     console.log('🎯 [CAPABILITY]', capabilityCheck.reason)
 
     // Build system prompt
-    let systemPrompt = await buildSystemPrompt(sessionId, useCache, locale || 'en')
+    let systemPrompt = await buildSystemPrompt(projectId, useCache, locale || 'en', event)
     
     // Add capability-specific instructions if triggered
     if (capabilityCheck.capability) {
@@ -191,8 +193,8 @@ export default defineEventHandler(async (event) => {
     const readableStream = new ReadableStream({
       async start(controller) {
         try {
-          // Send session ID at the start
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ metadata: { sessionId } })}\n\n`))
+          // Send project ID as metadata at the start
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ metadata: { projectId } })}\n\n`))
           
           for await (const chunk of stream) {
             if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
@@ -209,7 +211,7 @@ export default defineEventHandler(async (event) => {
           console.log('✅ [API] Streaming complete -', chunkCount, 'chunks sent')
           
           // Post-process: update session state from response
-          const { cleanResponse, memoryUpdated, backlogUpdated } = await processResponse(sessionId, fullResponse, projectId, event)
+          const { cleanResponse, memoryUpdated, backlogUpdated } = await processResponse(projectId, fullResponse, event)
           
           if (memoryUpdated) {
             console.log('🧠 [SESSION] Memory updated from response')

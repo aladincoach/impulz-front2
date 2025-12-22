@@ -5,7 +5,6 @@ export default defineEventHandler(async (event) => {
     const query = getQuery(event)
     const projectId = query.project_id as string | undefined
     const conversationId = query.conversation_id as string | undefined
-    const sessionId = query.session_id as string | undefined
     const listOnly = query.list === 'true'
 
     // If listOnly is true, return list of conversations for a project (for sidebar)
@@ -29,10 +28,10 @@ export default defineEventHandler(async (event) => {
     }
 
     // Otherwise, get conversation messages (for loading chat history)
-    if (!conversationId && !projectId && !sessionId) {
+    if (!conversationId && !projectId) {
       throw createError({
         statusCode: 400,
-        statusMessage: 'conversation_id, project_id, or session_id is required'
+        statusMessage: 'conversation_id or project_id is required'
       })
     }
 
@@ -49,9 +48,6 @@ export default defineEventHandler(async (event) => {
     }
     if (projectId && !conversationId) {
       queryBuilder = queryBuilder.eq('project_id', projectId)
-    }
-    if (sessionId) {
-      queryBuilder = queryBuilder.eq('session_id', sessionId)
     }
 
     const { data: conversation, error: convError } = await queryBuilder.single() as { data: { id: string } | null; error: any }

@@ -1,9 +1,8 @@
-import { getSession } from '../../utils/memory'
+import { getSupabaseClient } from '../../utils/supabase'
 
 /**
  * Get project memory for a project
- * Memory is scoped per project and shared across all conversations
- * The session ID is simply `project_{projectId}` to ensure consistency
+ * Memory is loaded directly from Supabase for cross-device sync
  */
 export default defineEventHandler(async (event) => {
   const projectId = getRouterParam(event, 'projectId')
@@ -16,24 +15,51 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    // Session ID is directly derived from projectId
-    // This ensures all conversations in a project share the same memory
-    const sessionId = `project_${projectId}`
-    console.log('🔍 [MEMORY] Fetching memory for session:', sessionId)
+    const supabase = getSupabaseClient(event)
     
-    // Get session - this will return existing session or create a new one
-    const session = getSession(sessionId)
+    // Load memory directly from Supabase
+    const { data, error } = await supabase
+      .from('project_memory')
+      .select('memory, questions, updated_at')
+      .eq('project_id', projectId)
+      .single() as { data: any; error: any }
     
-    console.log('📊 [MEMORY] Memory retrieved:', {
-      projectName: session.memory.project?.name,
-      projectPhase: session.memory.project?.phase,
-      activitiesCount: session.memory.progress?.activities?.length || 0,
-      skillsCount: session.memory.user?.skills?.length || 0
+    if (error) {
+      // If not found, return empty default memory
+      if (error.code === 'PGRST116') {
+        console.log('📊 [MEMORY] No memory found for project, returning defaults:', projectId)
+        return {
+          memory: {
+            project: {},
+            progress: { activities: [], milestones: [] },
+            user: { skills: [], assets: [], constraints: {} }
+          },
+          questions: []
+        }
+      }
+      
+      console.error('❌ [MEMORY] Error loading from Supabase:', error)
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Failed to fetch memory'
+      })
+    }
+    
+    console.log('📊 [MEMORY] Memory retrieved from Supabase:', {
+      projectName: data.memory?.project?.name,
+      projectPhase: data.memory?.project?.phase,
+      activitiesCount: data.memory?.progress?.activities?.length || 0,
+      skillsCount: data.memory?.user?.skills?.length || 0,
+      updatedAt: data.updated_at
     })
     
     return {
-      memory: session.memory,
-      questions: session.questions
+      memory: data.memory || {
+        project: {},
+        progress: { activities: [], milestones: [] },
+        user: { skills: [], assets: [], constraints: {} }
+      },
+      questions: data.questions || []
     }
   } catch (error: any) {
     console.error('❌ [MEMORY] Error:', error)

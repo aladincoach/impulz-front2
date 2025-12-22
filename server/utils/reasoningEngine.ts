@@ -5,7 +5,8 @@
 
 import type { SessionMemory, SessionState, QuestionItem } from './memory'
 import { 
-  getSession, 
+  getSession,
+  getSessionSync,
   updateMemory, 
   parseMemoryUpdates, 
   parseQuestionBacklog,
@@ -25,11 +26,13 @@ import { getSupabaseClient } from './supabase'
  * Build the complete system prompt for Claude
  */
 export async function buildSystemPrompt(
-  sessionId: string,
+  projectId: string,
   useCache: boolean = true,
-  locale: string = 'en'
+  locale: string = 'en',
+  event?: any
 ): Promise<string> {
-  const session = getSession(sessionId)
+  // Load session from Supabase (async)
+  const session = await getSession(projectId, event)
   const basePrompt = await getBasePromptFromNotion(useCache)
   const knowledgeBase = await getKnowledgeBase(useCache)
   
@@ -269,9 +272,8 @@ You challenge assumptions when needed, but always constructively.
  * Process Claude's response and update session state
  */
 export async function processResponse(
-  sessionId: string,
+  projectId: string,
   response: string,
-  projectId?: string | null,
   event?: any
 ): Promise<{ cleanResponse: string; memoryUpdated: boolean; backlogUpdated: boolean }> {
   let memoryUpdated = false
@@ -280,14 +282,14 @@ export async function processResponse(
   // Extract and apply memory updates
   const memoryUpdates = parseMemoryUpdates(response)
   if (memoryUpdates) {
-    await updateMemory(sessionId, memoryUpdates, projectId, event)
+    await updateMemory(projectId, memoryUpdates, event)
     memoryUpdated = true
     console.log('🧠 [REASONING] Memory updated:', JSON.stringify(memoryUpdates))
     
     // If project info was updated, create/update project synthesis document
-    if ((memoryUpdates.project || memoryUpdates.progress || memoryUpdates.user) && projectId && event) {
+    if ((memoryUpdates.project || memoryUpdates.progress || memoryUpdates.user) && event) {
       try {
-        await updateProjectSynthesisDocument(projectId, sessionId, event)
+        await updateProjectSynthesisDocument(projectId, event)
       } catch (error) {
         console.warn('⚠️ [REASONING] Failed to update project synthesis document:', error)
       }
@@ -297,7 +299,7 @@ export async function processResponse(
   // Extract and apply question backlog updates
   const newBacklog = parseQuestionBacklog(response)
   if (newBacklog) {
-    updateQuestionBacklog(sessionId, newBacklog)
+    await updateQuestionBacklog(projectId, newBacklog, event)
     backlogUpdated = true
     console.log('📝 [REASONING] Backlog updated:', newBacklog.length, 'questions')
   }
@@ -330,10 +332,10 @@ export { formatKnowledgeEntry }
  */
 async function updateProjectSynthesisDocument(
   projectId: string,
-  sessionId: string,
   event: any
 ): Promise<void> {
-  const session = getSession(sessionId)
+  // Load session to get current memory state
+  const session = await getSession(projectId, event)
   const memory = session.memory
   const supabase = getSupabaseClient(event)
   
@@ -481,13 +483,19 @@ function formatProjectSynthesis(memory: SessionMemory): string {
 
 /**
  * Check if a capability should be triggered based on user message and memory
+ * Uses sync cache access - session should already be loaded in cache by chat.post.ts
  */
 export function shouldTriggerCapability(
-  sessionId: string,
+  projectId: string,
   userMessage: string
 ): { capability: 'flash_diagnostic' | 'action_plan' | null; reason: string } {
-  const session = getSession(sessionId)
+  const session = getSessionSync(projectId)
   const message = userMessage.toLowerCase()
+  
+  // If no session in cache, can't determine capability triggers
+  if (!session) {
+    return { capability: null, reason: 'Session not loaded yet' }
+  }
   
   // Check for explicit triggers
   if (message.includes('diagnostic') || message.includes('diagnos') || message.includes('assess')) {
@@ -508,4 +516,3 @@ export function shouldTriggerCapability(
   
   return { capability: null, reason: 'No capability trigger detected' }
 }
-

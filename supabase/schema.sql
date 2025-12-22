@@ -2,17 +2,16 @@
 -- Comment out these lines if you want to keep existing data
 -- DROP TABLE IF EXISTS messages CASCADE;
 -- DROP TABLE IF EXISTS conversations CASCADE;
+-- DROP TABLE IF EXISTS project_memory CASCADE;
 
 -- Create conversations table
 CREATE TABLE conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  session_id TEXT NOT NULL,
   project_id UUID,
   name TEXT DEFAULT 'New Conversation',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  metadata JSONB DEFAULT '{}'::jsonb,
-  UNIQUE(session_id)
+  metadata JSONB DEFAULT '{}'::jsonb
 );
 
 -- Create messages table
@@ -25,17 +24,32 @@ CREATE TABLE messages (
   metadata JSONB DEFAULT '{}'::jsonb
 );
 
+-- Create project_memory table for persistent memory storage
+-- Memory is scoped per project and shared across all conversations
+CREATE TABLE project_memory (
+  project_id UUID PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+  memory JSONB NOT NULL DEFAULT '{
+    "project": {},
+    "progress": {"activities": [], "milestones": []},
+    "user": {"skills": [], "assets": [], "constraints": {}}
+  }'::jsonb,
+  questions JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
-CREATE INDEX IF NOT EXISTS idx_conversations_session_id ON conversations(session_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_created_at ON conversations(created_at);
 CREATE INDEX IF NOT EXISTS idx_conversations_project_id ON conversations(project_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_name ON conversations(name);
+CREATE INDEX IF NOT EXISTS idx_project_memory_updated_at ON project_memory(updated_at);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE project_memory ENABLE ROW LEVEL SECURITY;
 
 -- Create policies for public access (adjust based on your auth requirements)
 -- For now, allowing all operations - you may want to restrict this based on user authentication
@@ -43,6 +57,9 @@ CREATE POLICY "Allow all operations on conversations" ON conversations
   FOR ALL USING (true) WITH CHECK (true);
 
 CREATE POLICY "Allow all operations on messages" ON messages
+  FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow all operations on project_memory" ON project_memory
   FOR ALL USING (true) WITH CHECK (true);
 
 -- Create function to update updated_at timestamp
@@ -57,6 +74,11 @@ $$ LANGUAGE plpgsql;
 -- Create trigger to automatically update updated_at
 CREATE TRIGGER update_conversations_updated_at
   BEFORE UPDATE ON conversations
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_project_memory_updated_at
+  BEFORE UPDATE ON project_memory
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
