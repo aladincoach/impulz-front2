@@ -6,7 +6,17 @@
  * A local cache is maintained for performance during the session
  */
 
-import type { ProjectPhase } from './workflowTypes'
+// ============================================
+// TYPES
+// ============================================
+
+export type ProjectPhase = 
+  | 'vision'
+  | 'research'
+  | 'design'
+  | 'test'
+  | 'launch'
+  | 'growth'
 
 // ============================================
 // MEMORY INTERFACES
