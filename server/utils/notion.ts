@@ -371,14 +371,50 @@ export async function getKnowledgeBase(useCache: boolean = true): Promise<Knowle
     let hasMore = true
     let startCursor: string | undefined = undefined
     
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'notion.ts:368',message:'getKnowledgeBase: starting pagination loop',data:{databaseId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H'})}).catch(()=>{});
+    // #endregion
+    
     while (hasMore) {
-      // In Notion SDK v5, databases.query was replaced by dataSources.query
-      // The database_id parameter is now data_source_id
-      const response = await notion.dataSources.query({
-        data_source_id: databaseId,
-        start_cursor: startCursor,
-        page_size: 100
-      })
+      
+      // In Notion SDK v5, databases.query() was removed from the SDK
+      // We need to call the API directly using fetch since notion.request() doesn't work with this endpoint
+      let response: any
+      try {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'notion.ts:386',message:'getKnowledgeBase: calling API directly with fetch',data:{databaseId,startCursor,apiKeyLength:apiKey?.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
+        // #endregion
+        
+        // Call the Notion API directly using fetch
+        const apiResponse = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Notion-Version': '2022-06-28',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            ...(startCursor && { start_cursor: startCursor }),
+            page_size: 100
+          })
+        })
+        
+        if (!apiResponse.ok) {
+          const errorData = await apiResponse.json().catch(() => ({}))
+          throw new Error(`API error: ${apiResponse.status} ${apiResponse.statusText} - ${JSON.stringify(errorData)}`)
+        }
+        
+        response = await apiResponse.json()
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'notion.ts:407',message:'getKnowledgeBase: API call succeeded',data:{hasResults:!!response.results,resultsLength:response.results?.length,hasMore:response.has_more,responseKeys:Object.keys(response)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
+        // #endregion
+      } catch (apiError: any) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'notion.ts:412',message:'getKnowledgeBase: API call failed',data:{errorMessage:apiError?.message,errorStack:apiError?.stack?.substring(0,500)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
+        // #endregion
+        throw apiError
+      }
       
       for (const row of response.results) {
         const entry = notionRowToKnowledgeEntry(row)
@@ -389,7 +425,7 @@ export async function getKnowledgeBase(useCache: boolean = true): Promise<Knowle
       }
       
       hasMore = response.has_more
-      startCursor = response.next_cursor
+      startCursor = response.next_cursor || undefined
     }
     
     console.log(`✅ [NOTION] Loaded ${entries.length} knowledge base entries`)
@@ -401,6 +437,9 @@ export async function getKnowledgeBase(useCache: boolean = true): Promise<Knowle
     
     return entries
   } catch (error: any) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/30efcb70-2bcc-4424-99b4-7c9b6585f9ec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'notion.ts:425',message:'getKnowledgeBase: outer catch block',data:{errorMessage:error?.message,errorCode:error?.code,errorStatus:error?.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H'})}).catch(()=>{});
+    // #endregion
     console.error('❌ [NOTION] Error fetching knowledge base:', error.message)
     return knowledgeBaseCache?.entries || []
   }

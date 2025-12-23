@@ -12,7 +12,7 @@ A simple, minimalist AI chatbot interface built with Nuxt 3, Tailwind CSS, and N
 - 💭 **Animated loading indicator**
 - 🌐 **Bilingual support (French/English)**
 - 🧩 Modular component structure
-- 🔄 **Workflow-based coaching system** (60-75% reduction in prompt tokens)
+- 🧠 **Memory-based reasoning engine**
 
 ## Project Structure
 
@@ -27,17 +27,13 @@ A simple, minimalist AI chatbot interface built with Nuxt 3, Tailwind CSS, and N
 │   ├── api/
 │   │   └── chat.post.ts       # API endpoint for Claude integration
 │   └── utils/
-│       ├── workflowTypes.ts            # TypeScript types for workflow
-│       ├── basePrompt.ts               # Minimal base system prompt
-│       ├── stagePrompts.ts             # Stage-specific prompts
-│       ├── workflowEngine.ts           # Workflow logic & state management
-│       ├── conversationStateManager.ts # Session state persistence
-│       ├── systemPrompt.ts             # Legacy monolithic prompt
-│       └── notion.ts                   # Notion integration
+│       ├── reasoningEngine.ts # Core reasoning & prompt building
+│       ├── memory.ts          # Session memory management
+│       ├── notion.ts          # Notion integration for prompts
+│       └── supabase.ts        # Database client
 ├── app.vue                    # Root app component
 ├── nuxt.config.ts             # Nuxt configuration
-├── tailwind.config.ts         # Tailwind custom colors
-└── WORKFLOW_REFACTORING.md    # Detailed workflow documentation
+└── tailwind.config.ts         # Tailwind custom colors
 ```
 
 ## Setup
@@ -56,38 +52,19 @@ Create a `.env` file at the root of the project:
 # Anthropic API Key (required)
 ANTHROPIC_API_KEY=your_api_key_here
 
-# Workflow Configuration (recommended)
-# Set to 'false' to use legacy monolithic prompt system
-USE_WORKFLOW=true
-
-# System Prompt Cache (for legacy mode)
-# Set to 'true' to use hardcoded prompt instead of fetching from Notion
-SYSTEM_PROMPT_CACHE=false
-
-# Notion Configuration (optional - for workflow prompts)
+# Notion Configuration (optional - for dynamic prompts)
 NOTION_API_KEY=your_notion_integration_token
 
-# Notion Page IDs for workflow prompts (optional - falls back to hardcoded if not set)
+# Notion Page IDs for prompts (optional - falls back to hardcoded if not set)
 NOTION_BASEPROMPT=your_base_prompt_page_id
-NOTION_STAGEPROMPT_1=your_stage1_page_id
-NOTION_STAGEPROMPT_2=your_stage2_page_id
-NOTION_STAGEPROMPT_3=your_stage3_page_id
-NOTION_STAGEPROMPT_4=your_stage4_page_id
-NOTION_STAGEPROMPT_5=your_stage5_page_id
-NOTION_STAGEPROMPT_6=your_stage6_page_id
-NOTION_STAGEPROMPT_7=your_stage7_page_id
 
 # Notion cache duration (optional, default: 300 seconds = 5 minutes)
 NOTION_CACHE_SECONDS=300
-
-# Legacy Notion configuration (for monolithic prompt mode)
 ```
 
 **Important**: 
-- The new **workflow-based system** (default) reduces prompt tokens by 60-75%
 - To get your Anthropic API key, visit [Anthropic Console](https://console.anthropic.com/)
-- For workflow details, see [WORKFLOW_REFACTORING.md](./WORKFLOW_REFACTORING.md)
-- For Notion setup (legacy mode), see [NOTION_SETUP.md](./NOTION_SETUP.md)
+- For Notion setup, see [NOTION_SETUP.md](./NOTION_SETUP.md)
 
 ## Development
 
@@ -146,29 +123,13 @@ The `netlify.toml` file is pre-configured with:
 
 ## Technical Details
 
-- **Model**: Claude 3.5 Haiku (claude-3-5-haiku-20241022)
+- **Model**: Claude Sonnet 4 (claude-sonnet-4-20250514)
 - **Max tokens**: 4096
 - **API**: Anthropic Messages API with streaming
 - **Frontend**: Vue 3 Composition API with TypeScript
 - **Styling**: Tailwind CSS + Nuxt UI components
 - **Logs**: Detailed console logs for debugging (frontend + backend)
-- **Workflow**: 7-stage coaching workflow with automatic progression and skip logic
-
-### Workflow Architecture
-
-The system uses a **stage-based workflow** that significantly reduces token usage:
-
-1. **Intent Understanding** - Categorize user's intent (funding, selling, building, etc.)
-2. **Project Understanding** - Gather business model details (skipped if generic question)
-3. **Project Progress** - Determine project phase (vision → research → design → test → launch → growth)
-4. **Underlying Problem** - Validate intent-phase compatibility (challenges premature goals)
-5. **Action** - Propose 3 priority actions aligned with current stage
-6. **Guidance** - Provide detailed guidance (skipped if user declines)
-7. **Debrief** - Session wrap-up and scheduling
-
-**Token Savings**: ~60-75% reduction in system prompt tokens vs. monolithic approach
-
-For detailed workflow documentation, see [WORKFLOW_REFACTORING.md](./WORKFLOW_REFACTORING.md)
+- **Memory**: Project and user memory persisted to Supabase
 
 ## Next Steps
 
