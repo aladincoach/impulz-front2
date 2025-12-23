@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { 
-  getSession, 
+  getProjectSession, 
   parseMemoryUpdates,
   parseQuestionBacklog,
   updateMemory,
@@ -53,7 +53,7 @@ export default defineEventHandler(async (event) => {
   try {
     // Load session from Supabase (or cache) - now async
     // Uses projectId as the key to ensure all conversations in a project share memory
-    const session = await getSession(projectId, event)
+    const session = await getProjectSession(projectId, event)
     
     console.log('🔄 [SESSION] Project ID:', projectId)
     console.log('🔄 [SESSION] Memory:', JSON.stringify(session.memory.project, null, 2))

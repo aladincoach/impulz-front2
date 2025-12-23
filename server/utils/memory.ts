@@ -168,7 +168,7 @@ function createDefaultSession(projectId: string): SessionState {
  * Get session for a project - loads from Supabase if not in cache
  * This is now ASYNC to support loading from database
  */
-export async function getSession(projectId: string, event?: any): Promise<SessionState> {
+export async function getProjectSession(projectId: string, event?: any): Promise<SessionState> {
   // Check cache first
   if (sessionCache.has(projectId)) {
     console.log('📦 [MEMORY] Using cached session for project:', projectId)
@@ -223,9 +223,9 @@ export async function getSession(projectId: string, event?: any): Promise<Sessio
 
 /**
  * Get session synchronously from cache only (for non-async contexts)
- * Returns null if not cached - caller should use async getSession first
+ * Returns null if not cached - caller should use async getProjectSession first
  */
-export function getSessionSync(projectId: string): SessionState | null {
+export function getProjectSessionSync(projectId: string): SessionState | null {
   return sessionCache.get(projectId) || null
 }
 

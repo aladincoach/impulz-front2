@@ -110,7 +110,9 @@ End with:
 `
 }
 
-export { generateFlashDiagnostic } from './flashDiagnostic'
-export { generateActionPlan } from './actionPlan'
+// Functions are imported above for internal use only
+// If you need to import these functions, import directly from their source files:
+// - generateFlashDiagnostic from './flashDiagnostic'
+// - generateActionPlan from './actionPlan'
 
 

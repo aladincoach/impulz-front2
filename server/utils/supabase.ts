@@ -55,7 +55,7 @@ export interface Message {
   metadata?: Record<string, any>
 }
 
-export interface ProjectMemory {
+export interface ProjectMemoryRow {
   project_id: string
   memory: Record<string, any>
   questions: any[]

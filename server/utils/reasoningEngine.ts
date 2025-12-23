@@ -5,8 +5,8 @@
 
 import type { SessionMemory, SessionState, QuestionItem } from './memory'
 import { 
-  getSession,
-  getSessionSync,
+  getProjectSession,
+  getProjectSessionSync,
   updateMemory, 
   parseMemoryUpdates, 
   parseQuestionBacklog,
@@ -32,7 +32,7 @@ export async function buildSystemPrompt(
   event?: any
 ): Promise<string> {
   // Load session from Supabase (async)
-  const session = await getSession(projectId, event)
+  const session = await getProjectSession(projectId, event)
   const basePrompt = await getBasePromptFromNotion(useCache)
   const knowledgeBase = await getKnowledgeBase(useCache)
   
@@ -321,10 +321,7 @@ export async function getKnowledgeEntryById(
   return entries.find(e => e.id === entryId || e.id.startsWith(entryId)) || null
 }
 
-/**
- * Format knowledge entry for inclusion in response
- */
-export { formatKnowledgeEntry }
+// formatKnowledgeEntry is available from './notion' - import directly if needed
 
 /**
  * Create or update project synthesis document
@@ -335,7 +332,7 @@ async function updateProjectSynthesisDocument(
   event: any
 ): Promise<void> {
   // Load session to get current memory state
-  const session = await getSession(projectId, event)
+  const session = await getProjectSession(projectId, event)
   const memory = session.memory
   const supabase = getSupabaseClient(event)
   
@@ -489,7 +486,7 @@ export function shouldTriggerCapability(
   projectId: string,
   userMessage: string
 ): { capability: 'flash_diagnostic' | 'action_plan' | null; reason: string } {
-  const session = getSessionSync(projectId)
+  const session = getProjectSessionSync(projectId)
   const message = userMessage.toLowerCase()
   
   // If no session in cache, can't determine capability triggers
